@@ -1,13 +1,14 @@
 (ns leiningen.source-deps
-  (:require [cemerick.pomegranate.aether :as aether]
+  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files]]
+            [cemerick.pomegranate.aether :as aether]
             [me.raynes.fs :as fs]
             [clojure.string :as str]
             [clojure.java.io :as io]
             [clojure.tools.namespace.move :refer [move-ns replace-ns-symbol]]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
-            [clojure.pprint :as pp])
-  (:import [java.util.zip ZipFile]
-           [java.io File]))
+            [clojure.pprint :as pp]
+            [leiningen.core.main :refer [info debug]])
+  (:import [java.util.zip ZipFile]))
 
 (defn- zip-target-file
   [target-dir entry-path]
@@ -31,16 +32,6 @@
           (filter #(not (.isDirectory ^java.util.zip.ZipEntry %)))
           (map #(.getName %))
           (filter #(.endsWith % ".clj"))))))
-
-(defn- clojure-source-files [dirs]
-  (->> dirs
-       (map io/file)
-       (filter #(.exists ^File %))
-       (mapcat file-seq)
-       (filter (fn [^File file]
-                 (and (.isFile file)
-                      (.endsWith (.getName file) ".clj"))))
-       (map #(.getCanonicalFile ^File %))))
 
 (defn- cljfile->prefix [clj-file]
   (->> (str/split clj-file #"/")
@@ -93,8 +84,8 @@
         clj-files (unzip (-> dep meta :file) src)
         repl-prefix (replacement-prefix src src-path art-name-cleaned art-version nil)
         prefixes (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files))]
-    (println (format "retrieving %s artifact. modified dependency name: %s modified version string: %s" art-name art-name-cleaned art-version))
-    (println "   modified namespace prefix: " repl-prefix)
+    (info (format "retrieving %s artifact. modified dependency name: %s modified version string: %s" art-name art-name-cleaned art-version))
+    (info "   modified namespace prefix: " repl-prefix)
     (doseq [clj-file clj-files]
       (let [old-ns (->> clj-file (fs/file src) read-file-ns-decl second)
             new-ns (replacement repl-prefix old-ns nil)
@@ -110,7 +101,7 @@
       (doall (map (partial update-file file prefixes) (keys prefixes))))
     ;; recur on transitive deps, omit clojure itself
     (when-let [trans-deps (dep-hierarchy dep)]
-      (println (format "resolving transitive dependencies for %s:" art-name))
+      (info (format "resolving transitive dependencies for %s:" art-name))
       (pp/pprint trans-deps)
       (->> trans-deps
            keys
@@ -123,7 +114,7 @@
 
    Somewhat node.js & npm style dependency handling."
   [{:keys [repositories source-dependencies source-paths root] :as project} & args]
-  (let [src (apply str (drop (inc (count root)) (first source-paths)))
+  (let [src (first-src-path root source-paths)
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))]
     (doall (map (partial unzip&update-artifact! src (fs/file src) dep-hierarchy) (keys dep-hierarchy)))))
