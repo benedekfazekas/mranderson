@@ -66,7 +66,8 @@
 
 (defn- update-file [file prefixes prefix]
   (let [old (slurp file)
-        new (str/replace old (re-pattern (str "(\\[\\s*)" prefix "(\\s+\\[?)")) (str "$1" (prefixes prefix) "$2"))]
+        new (-> (str/replace old (re-pattern (str "(\\[\\s*)" prefix "(\\s+\\[?)")) (str "$1" (prefixes prefix) "$2"))
+                (str/replace (re-pattern (str "(\\s+)" prefix)) (str "$1" (prefixes prefix))))]
     (when-not (= old new)
       (spit file new))))
 
@@ -77,27 +78,27 @@
     (when-not (= old new)
       (spit file new))))
 
-(defn- unzip&update-artifact! [src src-path dep-hierarchy dep]
+(defn- unzip&update-artifact! [srcdeps src-path dep-hierarchy dep]
   (let [art-name (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version (str "v" (-> dep second (str/replace "." "v")))
-        clj-files (unzip (-> dep meta :file) src)
-        repl-prefix (replacement-prefix src src-path art-name-cleaned art-version nil)
+        clj-files (unzip (-> dep meta :file) srcdeps)
+        repl-prefix (replacement-prefix "srcdeps" src-path art-name-cleaned art-version nil)
         prefixes (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files))]
     (info (format "retrieving %s artifact. modified dependency name: %s modified version string: %s" art-name art-name-cleaned art-version))
     (info "   modified namespace prefix: " repl-prefix)
     (doseq [clj-file clj-files]
-      (let [old-ns (->> clj-file (fs/file src) read-file-ns-decl second)
+      (let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)
             new-ns (replacement repl-prefix old-ns nil)
             new-deftype (replacement repl-prefix old-ns true)]
         ;; fixing generated classes/deftypes
         (when (.contains (name old-ns) "-")
-          (doseq [file (clojure-source-files [src])]
+          (doseq [file (clojure-source-files [srcdeps])]
             (update-deftypes file old-ns new-deftype)))
         ;; move actual ns-s
-        (move-ns old-ns new-ns src [src])))
+        (move-ns old-ns new-ns srcdeps [srcdeps])))
     ;; fixing prefixes
-    (doseq [file (clojure-source-files [src])]
+    (doseq [file (clojure-source-files [srcdeps])]
       (doall (map (partial update-file file prefixes) (keys prefixes))))
     ;; recur on transitive deps, omit clojure itself
     (when-let [trans-deps (dep-hierarchy dep)]
@@ -106,15 +107,17 @@
       (->> trans-deps
            keys
            (remove #(= (first %) (symbol "org.clojure/clojure")))
-           (map (partial unzip&update-artifact! src (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps))
+           (map (partial unzip&update-artifact! srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps))
            doall))))
 
 (defn source-deps
   "Dependencies as source used as if part of the project itself.
 
    Somewhat node.js & npm style dependency handling."
-  [{:keys [repositories source-dependencies source-paths root] :as project} & args]
-  (let [src (first-src-path root source-paths)
+  [{:keys [repositories source-dependencies source-paths root target-path] :as project} & args]
+  (fs/copy-dir (first source-paths) (str target-path "/srcdeps"))
+  (let [srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))]
-    (doall (map (partial unzip&update-artifact! src (fs/file src) dep-hierarchy) (keys dep-hierarchy)))))
+
+    (doall (map (partial unzip&update-artifact! srcdeps-relative (fs/file target-path "srcdeps") dep-hierarchy) (keys dep-hierarchy)))))
