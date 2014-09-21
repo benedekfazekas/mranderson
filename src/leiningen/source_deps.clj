@@ -114,10 +114,10 @@
   "Dependencies as source used as if part of the project itself.
 
    Somewhat node.js & npm style dependency handling."
-  [{:keys [repositories source-dependencies source-paths root target-path] :as project} & args]
+  [{:keys [repositories dependencies source-paths root target-path] :as project} & args]
   (fs/copy-dir (first source-paths) (str target-path "/srcdeps"))
-  (let [srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
+  (let [source-dependencies (filter #(:source-dep (meta %)) dependencies)
+        srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))]
-
     (doall (map (partial unzip&update-artifact! srcdeps-relative (fs/file target-path "srcdeps") dep-hierarchy) (keys dep-hierarchy)))))

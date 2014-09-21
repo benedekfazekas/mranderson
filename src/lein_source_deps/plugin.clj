@@ -10,7 +10,9 @@
 
 (defn middleware
   "Handles :gen-class instances in deps which need AOT"
-  [{:keys [source-paths root aot] :as project}]
-  (let [src (first-src-path root source-paths)
-        new-aot (reduce find-gen-class-ns aot (clojure-source-files [src]))]
-    (assoc project :aot new-aot)))
+  [{:keys [source-paths root aot deps-aot] :as project}]
+  (if deps-aot
+    (let [src (first-src-path root source-paths)
+          new-aot (reduce find-gen-class-ns aot (clojure-source-files [src]))]
+      (assoc project :aot new-aot))
+    project))
