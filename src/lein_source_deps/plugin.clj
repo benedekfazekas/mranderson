@@ -1,5 +1,5 @@
 (ns lein-source-deps.plugin
-  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files]]
+  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files source-dep?]]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]))
 
 (defn- find-gen-class-ns [found file]
@@ -10,9 +10,11 @@
 
 (defn middleware
   "Handles :gen-class instances in deps which need AOT"
-  [{:keys [source-paths root aot deps-aot] :as project}]
-  (if deps-aot
+  [{:keys [source-paths root aot dependencies srcdeps-project-hacks] :as project}]
+  (if srcdeps-project-hacks
     (let [src (first-src-path root source-paths)
           new-aot (reduce find-gen-class-ns aot (clojure-source-files [src]))]
-      (assoc project :aot new-aot))
+      (-> project
+          (assoc :dependencies (remove source-dep? dependencies))
+          (assoc :aot new-aot)))
     project))

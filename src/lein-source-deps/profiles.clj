@@ -2,5 +2,5 @@
                   :source-paths ["target/srcdeps"]
                   :filespecs [{:type :paths :paths ["target/srcdeps"]}]
                   :auto-clean false
-                  :deps-aot true
+                  :srcdeps-project-hacks true
                   :jar-exclusions [#"(?i)^META-INF/.*"]}}

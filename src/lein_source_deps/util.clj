@@ -14,3 +14,6 @@
 
 (defn first-src-path [root source-paths]
   (apply str (drop (inc (count root)) (first source-paths))))
+
+(defn source-dep? [dependency]
+  (:source-dep (meta dependency)))

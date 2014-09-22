@@ -1,5 +1,5 @@
 (ns leiningen.source-deps
-  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files]]
+  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files source-dep?]]
             [cemerick.pomegranate.aether :as aether]
             [me.raynes.fs :as fs]
             [clojure.string :as str]
@@ -116,7 +116,7 @@
    Somewhat node.js & npm style dependency handling."
   [{:keys [repositories dependencies source-paths root target-path] :as project} & args]
   (fs/copy-dir (first source-paths) (str target-path "/srcdeps"))
-  (let [source-dependencies (filter #(:source-dep (meta %)) dependencies)
+  (let [source-dependencies (filter source-dep? dependencies)
         srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))]
