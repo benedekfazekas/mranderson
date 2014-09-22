@@ -2,7 +2,7 @@
 
 Dependencies as source: used as if part of the project itself.
 
-Somewhat node.js & npm style dependency handling.
+Somewhat node.js & npm style dependency handling as a leiningen plugin.
 
 ## Prerequisites
 
