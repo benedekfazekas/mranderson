@@ -1,5 +1,5 @@
 (ns leiningen.source-deps
-  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files source-dep?]]
+  (:require [mranderson.util :refer [first-src-path clojure-source-files source-dep?]]
             [cemerick.pomegranate.aether :as aether]
             [me.raynes.fs :as fs]
             [clojure.string :as str]

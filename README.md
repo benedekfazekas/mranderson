@@ -1,4 +1,4 @@
-# lein-source-deps
+# MrAnderson
 
 Dependencies as source: used as if part of the project itself.
 
@@ -10,7 +10,7 @@ Somewhat node.js & npm style dependency handling.
 
 ## Usage
 
-Put `[lein-source-deps "0.1.0-SNAPSHOT"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.1.0-SNAPSHOT"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
@@ -33,7 +33,7 @@ The plugin basically retrieves the dependencies you marked (and their transitive
 
 Yes, this is only half way. Now you can of course still work with your original source tree but the plugin also provides you a built in profile which enables you to work with the munged sourcetree including your dependencies. For example you can (and should) run your tests with the modified source tree:
 
-    $ lein with-profile plugin.lein-source-deps/config test
+    $ lein with-profile plugin.mranderson/config test
 
 This does not stop here of course you can start up your repl with the modified source tree too of course.
 
@@ -64,6 +64,10 @@ A bit of additional magic happens when you use the built in profile: it actively
 ## Rationale
 
 Some might argue that the clojure (and java) way of dependency handling is broken. Nonetheless what npm does for node.js namely nested, local dependencies just feels right. And altough javascript land is a different world the same can be used at least for certain projects in clojure as well. Perhaps not all but some projects, specially the ones related to tooling and commons like libraries which a lot of other projects are depending on. These can benefit from this style of dependency handling.
+
+**MrAnderson?! Why?**
+
+At the end he really gets back to the source, does not he?
 
 ## License
 

@@ -1,4 +1,4 @@
-(ns lein-source-deps.util
+(ns mranderson.util
   (:require [clojure.java.io :as io])
   (:import [java.io File]))
 

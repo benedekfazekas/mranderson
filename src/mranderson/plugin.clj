@@ -1,5 +1,5 @@
-(ns lein-source-deps.plugin
-  (:require [lein-source-deps.util :refer [first-src-path clojure-source-files source-dep?]]
+(ns mranderson.plugin
+  (:require [mranderson.util :refer [first-src-path clojure-source-files source-dep?]]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]))
 
 (defn- find-gen-class-ns [found file]
