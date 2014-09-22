@@ -111,7 +111,7 @@
            doall))))
 
 (defn source-deps
-  "Dependencies as source used as if part of the project itself.
+  "Dependencies as source: used as if part of the project itself.
 
    Somewhat node.js & npm style dependency handling."
   [{:keys [repositories dependencies source-paths root target-path] :as project} & args]
