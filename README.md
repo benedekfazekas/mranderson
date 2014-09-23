@@ -53,6 +53,14 @@ change your dependencies and then again
 
 and you are good to go.
 
+**I deployed to clojars and my deployed jar is not mrandersoned. What happened?**
+
+As `deploy clojars` rebuilds the jar and the pom you have to use the profile here too:
+
+    $ lein with-profile plugin.mranderson/config deploy clojars
+
+otherwise an old style jar will be built and uploaded.
+
 **note** you should not mark clojure itself as a source dependency: there is a limit for everything.
 
 ## Under the hood
