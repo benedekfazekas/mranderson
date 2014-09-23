@@ -88,15 +88,15 @@
     (info (format "retrieving %s artifact. modified dependency name: %s modified version string: %s" art-name art-name-cleaned art-version))
     (info "   modified namespace prefix: " repl-prefix)
     (doseq [clj-file clj-files]
-      (let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)
-            new-ns (replacement repl-prefix old-ns nil)
-            new-deftype (replacement repl-prefix old-ns true)]
-        ;; fixing generated classes/deftypes
-        (when (.contains (name old-ns) "-")
-          (doseq [file (clojure-source-files [srcdeps])]
-            (update-deftypes file old-ns new-deftype)))
-        ;; move actual ns-s
-        (move-ns old-ns new-ns srcdeps [srcdeps])))
+      (when-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
+        (let [new-ns (replacement repl-prefix old-ns nil)
+              new-deftype (replacement repl-prefix old-ns true)]
+          ;; fixing generated classes/deftypes
+          (when (.contains (name old-ns) "-")
+            (doseq [file (clojure-source-files [srcdeps])]
+              (update-deftypes file old-ns new-deftype)))
+          ;; move actual ns-s
+          (move-ns old-ns new-ns srcdeps [srcdeps]))))
     ;; fixing prefixes
     (doseq [file (clojure-source-files [srcdeps])]
       (doall (map (partial update-file file prefixes) (keys prefixes))))
