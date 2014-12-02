@@ -41,6 +41,7 @@
 (defn- possible-prefixes [clj-files]
   (->> clj-files
        (map cljfile->prefix)
+       (remove #(str/blank? %))
        (reduce #(if (%1 %2) (assoc %1 %2 (inc (%1 %2))) (assoc %1 %2 1) ) {})
        (filter #(< 1 (val %)))
        (map first)))

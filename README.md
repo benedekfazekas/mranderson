@@ -10,7 +10,7 @@ Somewhat node.js & npm style dependency handling as a leiningen plugin.
 
 ## Usage
 
-Put `[thomasa/mranderson "0.2.1"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.2.2"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
@@ -33,9 +33,11 @@ The plugin basically retrieves the dependencies you marked (and their transitive
 
 Yes, this is only half way. Now you can of course still work with your original source tree but the plugin also provides you a built in profile which enables you to work with the munged sourcetree including your dependencies. For example you can (and should) run your tests with the modified source tree:
 
-    $ lein with-profile plugin.mranderson/config test
+    $ lein with-profile +plugin.mranderson/config test
 
-This does not stop here of course you can start up your repl with the modified source tree too of course.
+Please note the plus sign before the mranderson profile. This does not stop here of course you can start up your repl with the modified source tree too of course.
+
+    $ lein with-profile +plugin.mranderson/config repl
 
 **Ok I can play with the modified source but how do I release?**
 
