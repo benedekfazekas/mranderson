@@ -10,7 +10,7 @@ Somewhat node.js & npm style dependency handling as a leiningen plugin.
 
 ## Usage
 
-Put `[thomasa/mranderson "0.2.2"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.3.0"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
