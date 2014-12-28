@@ -8,7 +8,8 @@
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
             [clojure.pprint :as pp]
             [leiningen.core.main :refer [info debug]])
-  (:import [java.util.zip ZipFile]))
+  (:import [java.util.zip ZipFile]
+           [java.util UUID]))
 
 (defn- zip-target-file
   [target-dir entry-path]
@@ -79,28 +80,99 @@
     (when-not (= old new)
       (spit file new))))
 
-(defn- unzip&update-artifact! [srcdeps src-path dep-hierarchy dep]
+(defn- import-fragment-left [clj-source]
+  (let [index-of-import (.indexOf clj-source ":import")]
+    (when (> index-of-import -1)
+      (drop (loop [ns-decl-fragment (reverse (take index-of-import clj-source))
+                   index-of-open-bracket 1]
+              (cond (= \( (first ns-decl-fragment))
+                    (- index-of-import index-of-open-bracket)
+
+                    (not (re-matches #"\s" (-> ns-decl-fragment first str)))
+                    (count clj-source)
+
+                    :default (recur (rest ns-decl-fragment) (inc index-of-open-bracket)))) clj-source))))
+
+(defn- import-fragment [clj-source]
+  (let [import-fragment-left (import-fragment-left clj-source)]
+    (when (and import-fragment-left (> (count import-fragment-left) 0))
+      (loop [index 1
+             open-close 0]
+        (if (> open-close 0)
+          (apply str (take index import-fragment-left))
+          (recur (inc index) (cond (= \( (nth import-fragment-left index))
+                                   (dec open-close)
+
+                                   (= \) (nth import-fragment-left index))
+                                   (inc open-close)
+
+                                   :default open-close)))))))
+
+(defn- garble-import! [file-prefix file import-fragment uuid]
+  (let [old (slurp (fs/file file-prefix file))
+        new (if import-fragment
+              (str/replace old import-fragment (str "\"" uuid "\""))
+              old)]
+    (when-not (= old new)
+      (spit (fs/file file-prefix file) new))))
+
+(defn- retrieve-import [file-prefix file]
+  (let [cont (slurp (fs/file file-prefix file))
+        import-fragment (import-fragment cont)]
+    (when-not (str/blank? import-fragment)
+      [file import-fragment])))
+
+(defn- find-orig-import [imports file]
+  (or (loop [imps imports]
+        (let [imp (first imps)]
+          (if (.endsWith (str file) (str (first imp)))
+            (second imp)
+            (recur (rest imps))))) ""))
+
+(defn- degarble-imports! [imports file uuid]
+  (let [old (slurp file)
+        orig-import (find-orig-import imports file)
+        new (str/replace old (str "\"" uuid "\"") orig-import)]
+    (when-not (= old new)
+      (spit file new))))
+
+(defn- fix-reference-in-imports [srcdeps repl-prefix imps clj-file]
+  (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
+    (map #(vector (first %) (str/replace (second %) (str " " (name old-ns)) (str " " (name (replacement repl-prefix old-ns nil))))) imps)
+    imps))
+
+(defn- unzip&update-artifact! [uuid srcdeps src-path dep-hierarchy dep]
   (let [art-name (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version (str "v" (-> dep second (str/replace "." "v")))
-        clj-files (unzip (-> dep meta :file) srcdeps)
+        clj-files (doall (unzip (-> dep meta :file) srcdeps))
         repl-prefix (replacement-prefix "srcdeps" src-path art-name-cleaned art-version nil)
-        prefixes (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files))]
+        prefixes (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files))
+        imports (->> clj-files
+                     (reduce #(conj %1 (retrieve-import srcdeps %2)) [])
+                     (remove nil?)
+                     doall)
+        fixed-imports (reduce (partial fix-reference-in-imports srcdeps repl-prefix) imports clj-files)]
     (info (format "retrieving %s artifact. modified dependency name: %s modified version string: %s" art-name art-name-cleaned art-version))
     (info "   modified namespace prefix: " repl-prefix)
     (doseq [clj-file clj-files]
       (when-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-        (let [new-ns (replacement repl-prefix old-ns nil)
+        (let [import (find-orig-import imports clj-file)
+              new-ns (replacement repl-prefix old-ns nil)
               new-deftype (replacement repl-prefix old-ns true)]
+          ;; garble imports
+          (when-not (str/blank? import)
+            (garble-import! srcdeps clj-file import uuid))
           ;; fixing generated classes/deftypes
           (when (.contains (name old-ns) "-")
             (doseq [file (clojure-source-files [srcdeps])]
               (update-deftypes file old-ns new-deftype)))
           ;; move actual ns-s
           (move-ns old-ns new-ns srcdeps [srcdeps]))))
-    ;; fixing prefixes
+    ;; fixing prefixes, degarble imports
     (doseq [file (clojure-source-files [srcdeps])]
-      (doall (map (partial update-file file prefixes) (keys prefixes))))
+      (doall (map (partial update-file file prefixes) (keys prefixes)))
+      (degarble-imports! fixed-imports file uuid))
     ;; recur on transitive deps, omit clojure itself
     (when-let [trans-deps (dep-hierarchy dep)]
       (info (format "resolving transitive dependencies for %s:" art-name))
@@ -108,7 +180,7 @@
       (->> trans-deps
            keys
            (remove #(= (first %) (symbol "org.clojure/clojure")))
-           (map (partial unzip&update-artifact! srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps))
+           (map (partial unzip&update-artifact! uuid srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps))
            doall))))
 
 (defn source-deps
@@ -120,5 +192,6 @@
   (let [source-dependencies (filter source-dep? dependencies)
         srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
-                           (aether/dependency-hierarchy source-dependencies))]
-    (doall (map (partial unzip&update-artifact! srcdeps-relative (fs/file target-path "srcdeps") dep-hierarchy) (keys dep-hierarchy)))))
+                           (aether/dependency-hierarchy source-dependencies))
+        uuid (str (UUID/randomUUID))]
+    (doall (map (partial unzip&update-artifact! uuid srcdeps-relative (fs/file target-path "srcdeps") dep-hierarchy) (keys dep-hierarchy)))))
