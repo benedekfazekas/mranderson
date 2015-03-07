@@ -7,7 +7,8 @@
             [clojure.tools.namespace.move :refer [move-ns replace-ns-symbol]]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
             [clojure.pprint :as pp]
-            [leiningen.core.main :refer [info debug]])
+            [leiningen.core.main :refer [info debug]]
+            [clojure.edn :as edn])
   (:import [java.util.zip ZipFile]
            [java.util UUID]))
 
@@ -141,13 +142,13 @@
     (map #(vector (first %) (str/replace (second %) (str " " (name old-ns)) (str " " (name (replacement repl-prefix old-ns nil))))) imps)
     imps))
 
-(defn- unzip&update-artifact! [uuid srcdeps src-path dep-hierarchy dep]
+(defn- unzip&update-artifact! [uuid srcdeps src-path dep-hierarchy prefix-exclusions dep]
   (let [art-name (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version (str "v" (-> dep second (str/replace "." "v")))
         clj-files (doall (unzip (-> dep meta :file) srcdeps))
         repl-prefix (replacement-prefix "srcdeps" src-path art-name-cleaned art-version nil)
-        prefixes (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files))
+        prefixes (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps %2)) [])
                      (remove nil?)
@@ -180,7 +181,7 @@
       (->> trans-deps
            keys
            (remove #(= (first %) (symbol "org.clojure/clojure")))
-           (map (partial unzip&update-artifact! uuid srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps))
+           (map (partial unzip&update-artifact! uuid srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps prefix-exclusions))
            doall))))
 
 (defn source-deps
@@ -193,5 +194,9 @@
         srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))
-        uuid (str (UUID/randomUUID))]
-    (doall (map (partial unzip&update-artifact! uuid srcdeps-relative (fs/file target-path "srcdeps") dep-hierarchy) (keys dep-hierarchy)))))
+        uuid (str (UUID/randomUUID))
+        prefix-exclusions (-> args
+                              first
+                              edn/read-string
+                              :prefix-exclusions)]
+    (doall (map (partial unzip&update-artifact! uuid srcdeps-relative (fs/file target-path "srcdeps") dep-hierarchy prefix-exclusions) (keys dep-hierarchy)))))
