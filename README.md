@@ -4,13 +4,17 @@ Dependencies as source: used as if part of the project itself.
 
 Somewhat node.js & npm style dependency handling as a leiningen plugin.
 
+**Fancy words: 'npm style dependency handling' but what is this project is really about?**
+
+It basically makes inlining a less burdensome task. It automatically retrieves and prefixes your dependencies (both clojure source and java class files) and munges your clojure files -- mainly the namespace declaration but not only -- accordingly.
+
 ## Prerequisites
 
 **IMPORTANT** You need to install leiningen version **2.5.0** at least for this plugin if you want to use the built in profile (see below for explanation). Basic functionality (eg `lein source-deps`) still works though.
 
 ## Usage
 
-Put `[thomasa/mranderson "0.3.0"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.4.0"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
@@ -25,49 +29,45 @@ Now you are ready to run:
 
     $ lein source-deps
 
-**What happens here?**
+this retrieves dependencies and creates a deeply nested directory structure for them in `target/srcdeps` directory. It also munges all clojure source files accordingly. More over it uses [Jar Jar Links](https://code.google.com/p/jarjar/) to repackage your java class files dependencies if any.
 
-The plugin basically retrieves the dependencies you marked (and their transitive dependencies) and builds a nested tree of directories in `target/srcdeps` directory with the retrieved files. It also copies the project's sources under this directory and modifies both the project source files and the dependency source files so their namespace names are all reflecting the newly created nested directory structure.
+If you don't want mranderson to repackage your java dependencies you can opt out by passing `skip-javaclass-repackage true` as a parameter to `source-deps` task.
 
-**So far so good, but what's then?**
-
-Yes, this is only half way. Now you can of course still work with your original source tree but the plugin also provides you a built in profile which enables you to work with the munged sourcetree including your dependencies. For example you can (and should) run your tests with the modified source tree:
-
-    $ lein with-profile +plugin.mranderson/config test
-
-Please note the plus sign before the mranderson profile. This does not stop here of course you can start up your repl with the modified source tree too of course.
+After that you can run your tests or your repl with:
 
     $ lein with-profile +plugin.mranderson/config repl
 
-**Ok I can play with the modified source but how do I release?**
+    $ lein with-profile +plugin.mranderson/config test
 
-The usual way only use the above mentioned built in profile when you run `jar`, `install` and friends.
+note the plus sign before the leiningen profile.
 
-**What happens when I upgrade one of the depencies?**
+If you want to use mranderson while developing locally with the repl the source has to be modified in the target/srcdeps directory.
 
-Easy: run
+When you want to release locally:
+
+    $ lein with-profile plugin.mranderson/config install
+
+to clojars:
+
+    $ lein with-profile +plugin.mranderson/config deploy clojars
+
+If you want to change, update your dependencies just edit your `project.clj` file the usual way and run
 
     $ lein clean
 
-change your dependencies and then again
+and then again
 
     $ lein source-deps
 
 and you are good to go.
-
-**I deployed to clojars and my deployed jar is not mrandersoned. What happened?**
-
-As `deploy clojars` rebuilds the jar and the pom you have to use the profile here too:
-
-    $ lein with-profile plugin.mranderson/config deploy clojars
-
-otherwise an old style jar will be built and uploaded.
 
 **note** you should not mark clojure itself as a source dependency: there is a limit for everything.
 
 ## Under the hood
 
 There is not much magic there but simple modifing the source files as strings [tools.namespace](https://github.com/clojure/tools.namespace) style; see specially `clojure.tools.namespace.move` namespace. Also additionally some more source file munging is done for prefixes, some deftypes and the like.
+
+It also uses [Jar Jar Links](https://code.google.com/p/jarjar/) to repackage your java class files dependencies if any.
 
 A bit of additional magic happens when you use the built in profile: it actively switches on the leiningen middleware also built into the plugin. The middleware AOT compiles some clojure sources and removes dependencies marked with `^:source-deps` from the dependency list. So they won't show up in the generated pom file and so on.
 
