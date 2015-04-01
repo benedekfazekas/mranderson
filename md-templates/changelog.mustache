@@ -1,0 +1,22 @@
+{{^to-build-num}}
+# Changelog for [{{to}}]({{to-url}})
+{{/to-build-num}}
+{{#to-build-num}}
+# Changelog for build [{{to-build-num}}]({{to-url}}) created at {{to-time}}
+
+VCS tag: {{to}}
+{{/to-build-num}}
+{{^from-build-num}}
+## Changes since [{{from}}]({{from-url}}) ([diff](compare-url))
+{{/from-build-num}}
+{{#from-build-num}}
+## Changes since build [{{from-build-num}}]({{from-url}}) created at {{from-time}} ([diff]({{compare-url}}))
+VCS tag: {{from}}
+{{/from-build-num}}
+{{#sections}}
+
+### {{title}}
+{{#commits}}
+{{> commit}}
+{{/commits}}
+{{/sections}}
