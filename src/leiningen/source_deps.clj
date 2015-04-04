@@ -216,18 +216,21 @@
 (defn- prefix-dependency-imports! [pname pversion srcdeps]
   (info "prefixing imports in clojure files...")
   (let [cleaned-name-version (clean-name-version pname pversion)
-        java-dirs (java-class-dirs)
         clj-files (clojure-source-files-relative ["target/srcdeps"])
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps (remove-2parents %2))) [])
                      (remove nil?)
                      doall)
-        class-names (map class-file->fully-qualified-name (class-files))]
-    (debug "java-dirs" java-dirs)
+        class-names (map class-file->fully-qualified-name (class-files))
+        package-names (->> class-names
+                           (map class-name->package-name)
+                           set)]
+    (debug "class-names" class-names)
+    (debug "package-names" package-names)
     (doseq [file clj-files]
       (let [old (slurp (fs/file file))
             orig-import (find-orig-import imports file)
-            new-import (reduce #(str/replace %1 %2 (str cleaned-name-version "." %2)) orig-import java-dirs)
+            new-import (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
             uuid (str (UUID/randomUUID))
             new (str/replace old orig-import uuid)
             new (reduce #(str/replace %1 (re-pattern %2) (str cleaned-name-version "." %2)) new class-names)

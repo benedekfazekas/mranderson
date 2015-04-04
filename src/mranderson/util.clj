@@ -42,6 +42,11 @@
        (drop 2)
        (str/join ".")))
 
+(defn class-name->package-name [class-name]
+  (->> (str/split class-name #"\.")
+       butlast
+       (str/join ".")))
+
 (defn java-class-dirs
   "lists subdirs of target/srcdeps which contain .class files"
   []
