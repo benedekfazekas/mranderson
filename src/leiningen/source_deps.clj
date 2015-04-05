@@ -71,7 +71,7 @@
 (defn- update-file [file prefixes prefix]
   (let [old (slurp file)
         new (-> (str/replace old (re-pattern (str "(\\[\\s*)" prefix "(\\s+\\[?)")) (str "$1" (prefixes prefix) "$2"))
-                (str/replace (re-pattern (str "(\\s+)" prefix)) (str "$1" (prefixes prefix))))]
+                (str/replace (re-pattern (str "(\\s+)" prefix "([\\s\\.])")) (str "$1" (prefixes prefix) "$2")))]
     (when-not (= old new)
       (spit file new))))
 
