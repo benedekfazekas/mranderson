@@ -9,14 +9,27 @@
            [mranderson.util JjPackageRemapper JjMainProcessor]
            [com.tonicsystems.jarjar.ext_util StandaloneJarProcessor]))
 
-(defn clojure-source-files-relative [dirs]
-  (->> dirs
-       (map io/file)
-       (filter #(.exists ^File %))
-       (mapcat file-seq)
-       (filter (fn [^File file]
-                 (and (.isFile file)
-                      (.endsWith (.getName file) ".clj"))))))
+(defn clojure-source-files-relative
+  ([dirs excl-dir]
+     (let [excl-dirs (when excl-dir (map #(str % "/" excl-dir) dirs))]
+       (->> dirs
+            (map io/file)
+            (filter #(.exists ^File %))
+            (mapcat file-seq)
+            (remove (fn [file]
+                      (some #(.startsWith (str file) %) excl-dirs) ))
+            (filter (fn [^File file]
+                      (and (.isFile file)
+                           (.endsWith (.getName file) ".clj")))))))
+  ([dirs]
+     (clojure-source-files-relative dirs nil)))
+
+(defn relative-src-path [src-path]
+  (when-not (.endsWith src-path "target/srcdeps")
+    (vector (str "target/srcdeps"
+                 (-> src-path
+                     (str/split #"target/srcdeps")
+                     last)))))
 
 (defn clojure-source-files [dirs]
   (->> dirs

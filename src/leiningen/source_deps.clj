@@ -46,7 +46,8 @@
        (remove #(str/blank? %))
        (reduce #(if (%1 %2) (assoc %1 %2 (inc (%1 %2))) (assoc %1 %2 1) ) {})
        (filter #(< 1 (val %)))
-       (map first)))
+       (map first)
+       (map #(str/replace % "_" "-"))))
 
 (defn- replacement-prefix [src src-path art-name art-version underscorize?]
   (let [path (->> (str/split (str src-path) #"/")
@@ -77,7 +78,7 @@
 (defn- update-deftypes [file old-ns new-deftype]
   (let [old (slurp file)
         old-deftype-prefix (-> old-ns name (str/replace "-" "_"))
-        new (str/replace old (re-pattern (str "(\\s+)" old-deftype-prefix)) (str "$1" (name new-deftype)))]
+        new (str/replace old (re-pattern (str "([\\s\\^]+)" old-deftype-prefix)) (str "$1" (name new-deftype)))]
     (when-not (= old new)
       (spit file new))))
 
@@ -139,16 +140,76 @@
 
 (defn- fix-reference-in-imports [srcdeps repl-prefix imps clj-file]
   (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-    (map #(vector (first %) (str/replace (second %) (str " " (name old-ns)) (str " " (name (replacement repl-prefix old-ns nil))))) imps)
+    (map #(vector (first %) (str/replace (second %) (re-pattern (str "([^\\.])" (str/replace (name old-ns) "-" "_") "[^\\.]")) (str "$1" (name (replacement (str/replace repl-prefix "-" "_") old-ns true)) " "))) imps)
     imps))
 
-(defn- unzip&update-artifact! [pname pversion uuid srcdeps src-path dep-hierarchy prefix-exclusions dep]
+(defn- class-deps-jar!
+  "creates jar containing the deps class files"
+  []
+  (info "jaring all class file dependencies into target/class-deps.jar")
+  (with-open [file (io/output-stream "target/class-deps.jar")
+              zip (ZipOutputStream. file)
+              writer (io/writer zip)]
+    (let [class-files (class-files)]
+      (binding [*out* writer]
+        (doseq [class-file class-files]
+          (with-open [input (io/input-stream class-file)]
+            (.putNextEntry zip (ZipEntry. (remove-2parents class-file)))
+            (io/copy input zip)
+            (flush)
+            (.closeEntry zip)))))))
+
+(defn- replace-class-deps! []
+  (info "deleting directories with class files in target/srcdeps...")
+  (doseq [class-dir (->> (java-class-dirs)
+                         (map #(str/split % #"\."))
+                         (map first)
+                         set)]
+    (fs/delete-dir (str "target/srcdeps/" class-dir))
+    (info "  " class-dir " deleted"))
+  (info "unzipping repackaged class-deps.jar into target/srcdeps")
+  (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
+
+(defn- prefix-dependency-imports! [pname pversion src-path srcdeps]
+  (info "    prefixing imports in clojure files...")
+  (let [cleaned-name-version (clean-name-version pname pversion)
+        rel-src-path (relative-src-path src-path)
+        clj-files (concat (clojure-source-files-relative ["target/srcdeps"] "deps")
+                          (clojure-source-files-relative rel-src-path))
+        imports (->> clj-files
+                     (reduce #(conj %1 (retrieve-import srcdeps (remove-2parents %2))) [])
+                     (remove nil?)
+                     doall)
+        class-names (map class-file->fully-qualified-name (class-files))
+        package-names (->> class-names
+                           (map class-name->package-name)
+                           set)]
+    (debug "class-names" class-names)
+    (debug "package-names" package-names)
+    (doseq [file clj-files]
+      (let [old (slurp (fs/file file))
+            orig-import (find-orig-import imports file)
+            new-import (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
+            uuid (str (UUID/randomUUID))
+            new (str/replace old orig-import uuid)
+            new (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
+            new (str/replace new uuid new-import)]
+        (when-not (= old new)
+          (debug "file" file)
+          (debug "orig-import" orig-import "new-import" new-import)
+          (spit file new))))))
+
+(defn lookup-opt [opt-key opts]
+  (second (drop-while #(not= % opt-key) opts)))
+
+(defn- unzip&update-artifact! [pname pversion uuid skip-repackage-java-classes srcdeps src-path dep-hierarchy prefix-exclusions dep]
   (let [art-name (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version (str "v" (-> dep second (str/replace "." "v")))
         clj-files (doall (unzip (-> dep meta :file) srcdeps))
         repl-prefix (replacement-prefix "srcdeps" src-path art-name-cleaned art-version nil)
         prefixes (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
+        ignore (when-not skip-repackage-java-classes (prefix-dependency-imports! pname pversion (str src-path) srcdeps))
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps %2)) [])
                      (remove nil?)
@@ -183,65 +244,8 @@
       (->> trans-deps
            keys
            (remove #(= (first %) (symbol "org.clojure/clojure")))
-           (map (partial unzip&update-artifact! pname pversion uuid srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps prefix-exclusions))
+           (map (partial unzip&update-artifact! pname pversion uuid skip-repackage-java-classes srcdeps (fs/file src-path (str/join "/" ["deps" art-name-cleaned art-version])) trans-deps prefix-exclusions))
            doall))))
-
-(defn- class-deps-jar!
-  "creates jar containing the deps class files"
-  []
-  (info "jaring all class file dependencies into target/class-deps.jar")
-  (with-open [file (io/output-stream "target/class-deps.jar")
-              zip (ZipOutputStream. file)
-              writer (io/writer zip)]
-    (let [class-files (class-files)]
-      (binding [*out* writer]
-        (doseq [class-file class-files]
-          (with-open [input (io/input-stream class-file)]
-            (.putNextEntry zip (ZipEntry. (remove-2parents class-file)))
-            (io/copy input zip)
-            (flush)
-            (.closeEntry zip)))))))
-
-(defn- replace-class-deps! []
-  (info "deleting directories with class files in target/srcdeps...")
-  (doseq [class-dir (->> (java-class-dirs)
-                         (map #(str/split % #"\."))
-                         (map first)
-                         set)]
-    (fs/delete-dir (str "target/srcdeps/" class-dir))
-    (info "  " class-dir " deleted"))
-  (info "unzipping repackaged class-deps.jar into target/srcdeps")
-  (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
-
-(defn- prefix-dependency-imports! [pname pversion srcdeps]
-  (info "prefixing imports in clojure files...")
-  (let [cleaned-name-version (clean-name-version pname pversion)
-        clj-files (clojure-source-files-relative ["target/srcdeps"])
-        imports (->> clj-files
-                     (reduce #(conj %1 (retrieve-import srcdeps (remove-2parents %2))) [])
-                     (remove nil?)
-                     doall)
-        class-names (map class-file->fully-qualified-name (class-files))
-        package-names (->> class-names
-                           (map class-name->package-name)
-                           set)]
-    (debug "class-names" class-names)
-    (debug "package-names" package-names)
-    (doseq [file clj-files]
-      (let [old (slurp (fs/file file))
-            orig-import (find-orig-import imports file)
-            new-import (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
-            uuid (str (UUID/randomUUID))
-            new (str/replace old orig-import uuid)
-            new (reduce #(str/replace %1 (re-pattern %2) (str cleaned-name-version "." %2)) new class-names)
-            new (str/replace new uuid new-import)]
-        (when-not (= old new)
-          (debug "file" file)
-          (debug "orig-import" orig-import "new-import" new-import)
-          (spit file new))))))
-
-(defn lookup-opt [opt-key opts]
-  (second (drop-while #(not= % opt-key) opts)))
 
 (defn source-deps
   "Dependencies as source: used as if part of the project itself.
@@ -260,9 +264,8 @@
         srcdeps (fs/file target-path "srcdeps")]
     (debug "skip repackage" skip-repackage-java-classes)
     (info "retrieve dependencies and munge clojure source files")
-    (doall (map (partial unzip&update-artifact! name version uuid srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys dep-hierarchy)))
+    (doall (map (partial unzip&update-artifact! name version uuid skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys dep-hierarchy)))
     (when-not skip-repackage-java-classes
-      (prefix-dependency-imports! name version srcdeps)
       (class-deps-jar!)
       (apply-jarjar! name version)
       (replace-class-deps!))))
