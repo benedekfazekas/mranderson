@@ -6,7 +6,7 @@ Somewhat node.js & npm style dependency handling as a leiningen plugin.
 
 **Fancy words: 'npm style dependency handling' but what is this project is really about?**
 
-It basically makes inlining a less burdensome task. It automatically retrieves and prefixes your dependencies (both clojure source and java class files) and munges your clojure files -- mainly the namespace declaration but not only -- accordingly.
+It is an inlining tool which inlines your project's dependencies at packaging time. It automatically retrieves and prefixes your dependencies (both clojure source and java class files) and munges your clojure files -- mainly the namespace declaration but not only -- accordingly.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ It basically makes inlining a less burdensome task. It automatically retrieves a
 
 ## Usage
 
-Put `[thomasa/mranderson "0.4.0"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.4.1"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
@@ -31,7 +31,7 @@ Now you are ready to run:
 
 this retrieves dependencies and creates a deeply nested directory structure for them in `target/srcdeps` directory. It also munges all clojure source files accordingly. More over it uses [Jar Jar Links](https://code.google.com/p/jarjar/) to repackage your java class files dependencies if any.
 
-If you don't want mranderson to repackage your java dependencies you can opt out by passing `skip-javaclass-repackage true` as a parameter to `source-deps` task.
+If you don't want mranderson to repackage your java dependencies you can opt out by passing `:skip-javaclass-repackage true` as a parameter to `source-deps` task.
 
 After that you can run your tests or your repl with:
 
