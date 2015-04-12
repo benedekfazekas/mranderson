@@ -14,7 +14,7 @@ It is an inlining tool which inlines your project's dependencies at packaging ti
 
 ## Usage
 
-Put `[thomasa/mranderson "0.4.2"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.4.3"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
