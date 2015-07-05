@@ -175,7 +175,8 @@
   (info "    prefixing imports in clojure files...")
   (let [cleaned-name-version (clean-name-version pname pversion)
         rel-src-path (relative-src-path src-path)
-        clj-files (clojure-source-files-relative ["target/srcdeps"])
+        clj-files (concat (clojure-source-files-relative ["target/srcdeps"])
+                          (clojure-source-files-relative rel-src-path))
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps (remove-2parents %2))) [])
                      (remove nil?)
