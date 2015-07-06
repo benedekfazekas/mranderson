@@ -256,7 +256,7 @@
   (let [source-dependencies (filter source-dep? dependencies)
         opts (map #(edn/read-string %) args)
         project-prefix (lookup-opt :project-prefix opts)
-        pprefix (or project-prefix (clean-name-version name version))
+        pprefix (or project-prefix (clean-name-version "mranderson" (mranderson-version)))
         srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))

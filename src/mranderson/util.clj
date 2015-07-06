@@ -99,3 +99,12 @@
   (->> (str/split (str file) #"/")
        (drop 2)
        (str/join "/")))
+
+(defn mranderson-version []
+  (let [v (-> (io/resource "mranderson/project.clj")
+              slurp
+              read-string
+              (nth 2))]
+    (assert (string? v)
+            (str "Something went wrong, version is not a string: " v))
+    v))
