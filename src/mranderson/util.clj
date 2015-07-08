@@ -24,9 +24,11 @@
   ([dirs]
      (clojure-source-files-relative dirs nil)))
 
-(defn relative-src-path [src-path]
-  (when-not (.endsWith src-path "target/srcdeps")
-    (vector (str "target/srcdeps"
+(defn relevant-clj-dep-path [src-path prefix pprefix]
+  (if (.endsWith src-path "target/srcdeps")
+    [(str "target/srcdeps/" prefix)]
+    (vector (str "target/srcdeps/"
+                 pprefix
                  (-> src-path
                      (str/split #"target/srcdeps")
                      last)))))

@@ -171,12 +171,13 @@
   (info "unzipping repackaged class-deps.jar into target/srcdeps")
   (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
 
-(defn- prefix-dependency-imports! [pname pversion pprefix src-path srcdeps]
-  (info "    prefixing imports in clojure files...")
+(defn- prefix-dependency-imports! [pname pversion pprefix prefix src-path srcdeps]
   (let [cleaned-name-version (clean-name-version pname pversion)
-        rel-src-path (relative-src-path src-path)
-        clj-files (concat (clojure-source-files-relative ["target/srcdeps"])
-                          (clojure-source-files-relative rel-src-path))
+        prefix (some-> (first prefix)
+                       (str/replace "-" "_")
+                       (str/replace "." "/"))
+        clj-dep-path (relevant-clj-dep-path src-path prefix pprefix)
+        clj-files (clojure-source-files-relative clj-dep-path)
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps (remove-2parents %2))) [])
                      (remove nil?)
@@ -185,6 +186,7 @@
         package-names (->> class-names
                            (map class-name->package-name)
                            set)]
+    (info (format "    prefixing imports in clojure files in '%s' ..." (first clj-dep-path)))
     (debug "class-names" class-names)
     (debug "package-names" package-names)
     (doseq [file clj-files]
@@ -195,8 +197,8 @@
             new (str/replace old orig-import uuid)
             new (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
             new (str/replace new uuid new-import)]
-        (debug "file: " file " orig import:" orig-import " new import:" new-import)
         (when-not (= old new)
+          (debug "file: " file " orig import:" orig-import " new import:" new-import)
           (spit file new))))))
 
 (defn lookup-opt [opt-key opts]
@@ -209,7 +211,6 @@
         clj-files (doall (unzip (-> dep meta :file) srcdeps))
         repl-prefix (replacement-prefix pprefix "srcdeps" src-path art-name-cleaned art-version nil)
         prefixes (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
-        ignore (when-not skip-repackage-java-classes (prefix-dependency-imports! pname pversion pprefix (str src-path) srcdeps))
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps %2)) [])
                      (remove nil?)
@@ -218,6 +219,11 @@
     (info (format "  retrieving %s artifact."  art-name))
     (debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
     (debug "   modified namespace prefix: " repl-prefix)
+    (when-not skip-repackage-java-classes
+      (if (.endsWith (str src-path) "target/srcdeps")
+        (doall
+         (map #(prefix-dependency-imports! pname pversion pprefix % (str src-path) srcdeps) prefixes))
+        (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
     (doseq [clj-file clj-files]
       (when-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [import (find-orig-import imports clj-file)

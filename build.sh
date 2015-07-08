@@ -9,6 +9,6 @@ function check_result {
     fi
 }
 
-lein do clean, source-deps :skip-javaclass-repackage true
+lein do clean, source-deps :skip-javaclass-repackage true :project-prefix mranderson044SNAPSHOT
 check_result
 lein with-profile plugin.mranderson/config "$@"
