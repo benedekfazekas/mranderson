@@ -69,6 +69,12 @@
        (str/join "." )
        symbol))
 
+(defn- update-path-in-file [file old-path new-path]
+  (let [old (slurp file)
+        new (str/replace old old-path new-path)]
+    (when-not (= old new)
+      (spit file new))))
+
 (defn- update-file [file prefixes prefix]
   (let [old (slurp file)
         new (-> (str/replace old (re-pattern (str "(\\[\\s*)" prefix "(\\s+\\[?)")) (str "$1" (prefixes prefix) "$2"))
@@ -225,7 +231,7 @@
          (map #(prefix-dependency-imports! pname pversion pprefix % (str src-path) srcdeps) prefixes))
         (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
     (doseq [clj-file clj-files]
-      (when-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
+      (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [import (find-orig-import imports clj-file)
               new-ns (replacement repl-prefix old-ns nil)
               new-deftype (replacement repl-prefix old-ns true)]
@@ -238,7 +244,17 @@
             (doseq [file (clojure-source-files [srcdeps])]
               (update-deftypes file old-ns new-deftype)))
           ;; move actual ns-s
-          (move-ns old-ns new-ns srcdeps [srcdeps]))))
+          (move-ns old-ns new-ns srcdeps [srcdeps]))
+        ;; a clj file without ns
+        (when-not (= "project.clj" clj-file)
+          (let [old-path (str "target/srcdeps/" clj-file)
+                new-path (str pprefix "/" art-name-cleaned "/" art-version "/" clj-file)]
+              (fs/copy+ old-path (str "target/srcdeps/" new-path))
+              ;; replace occurrences of file path references
+              (doseq [file (clojure-source-files [srcdeps])]
+                (update-path-in-file file clj-file new-path))
+              ;; remove old file
+              (fs/delete old-path)))))
     ;; fixing prefixes, degarble imports
     (doseq [file (clojure-source-files [srcdeps])]
       (doall (map (partial update-file file prefixes) (keys prefixes)))
