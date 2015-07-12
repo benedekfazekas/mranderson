@@ -207,6 +207,17 @@
           (debug "file: " file " orig import:" orig-import " new import:" new-import)
           (spit file new))))))
 
+(defn- dep-frequency [dep-hierarchy]
+  (let [frequency (atom {})
+        freq-fn (fn [node]
+                  (when-let [pkg (and (vector? node) (symbol? (first node)) (first node))]
+                    (swap! frequency #(if (contains? % pkg)
+                                        (update-in % [pkg] inc)
+                                        (assoc % pkg 1))))
+                  node)]
+    (clojure.walk/postwalk freq-fn dep-hierarchy)
+    @frequency))
+
 (defn lookup-opt [opt-key opts]
   (second (drop-while #(not= % opt-key) opts)))
 
@@ -280,8 +291,13 @@
         project-prefix (lookup-opt :project-prefix opts)
         pprefix (or project-prefix (clean-name-version "mranderson" (mranderson-version)))
         srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
+        dep-frequencies (->> (map #(aether/resolve-dependencies :coordinates [%] :repositories repositories) source-dependencies)
+                             (map #(aether/dependency-hierarchy  source-dependencies %))
+                             dep-frequency)
+        dep-frequency-comp (comparator #(<= (-> %1 first dep-frequencies) (-> %2 first dep-frequencies)))
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))
+        ordered-hierarchy (into (sorted-map-by dep-frequency-comp) dep-hierarchy)
         uuid (str (UUID/randomUUID))
         prefix-exclusions (lookup-opt :prefix-exclusions opts)
         skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
@@ -289,7 +305,7 @@
     (debug "skip repackage" skip-repackage-java-classes)
     (info "project prefix: " pprefix)
     (info "retrieve dependencies and munge clojure source files")
-    (doall (map (partial unzip&update-artifact! name version pprefix uuid skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys dep-hierarchy)))
+    (doall (map (partial unzip&update-artifact! name version pprefix uuid skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys ordered-hierarchy)))
     (when-not skip-repackage-java-classes
       (class-deps-jar!)
       (apply-jarjar! name version)
