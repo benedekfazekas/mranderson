@@ -1,4 +1,4 @@
-(defproject thomasa/mranderson "0.4.5-SNAPSHOT"
+(defproject thomasa/mranderson "0.4.5"
   :description "Leiningen plugin to download and use some dependencies as source."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"
