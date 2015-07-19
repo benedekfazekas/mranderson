@@ -1,8 +1,7 @@
 (ns mranderson.plugin
   (:require [mranderson.util :refer [first-src-path clojure-source-files source-dep?]]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
-            [leiningen.core.main :refer [info debug]])
-)
+            [leiningen.core.main :refer [info debug]]))
 
 (defn- find-gen-class-ns [found file]
   (let [ns-decl (read-file-ns-decl file)]
