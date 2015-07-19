@@ -207,21 +207,16 @@
           (debug "file: " file " orig import:" orig-import " new import:" new-import)
           (spit file new))))))
 
-(defn- flat-dep-tree [individual-dep]
-  (let [deps (atom [])
-        flat-dep-fn (fn [node]
-                      (when-let [pkg (and (vector? node) (symbol? (first node)) (first node))]
-                        (swap! deps conj pkg))
-                      node)]
-    (clojure.walk/postwalk flat-dep-fn (-> individual-dep vals first))
-    [(-> individual-dep keys ffirst) @deps]))
-
-(defn- compare-deps
-  [flat-deps dep-left dep-right]
-  (let [dep-left-name (first dep-left)
-        dep-right-name (first dep-right)]
-    (not (or (some #{dep-left-name} (flat-deps dep-right-name))
-             (< 0 (compare (str dep-left-name) (str dep-right-name)))))))
+(defn- dep-frequency [dep-hierarchy]
+  (let [frequency (atom {})
+        freq-fn (fn [node]
+                  (when-let [pkg (and (vector? node) (symbol? (first node)) (first node))]
+                    (swap! frequency #(if (contains? % pkg)
+                                        (update-in % [pkg] inc)
+                                        (assoc % pkg 1))))
+                  node)]
+    (clojure.walk/postwalk freq-fn dep-hierarchy)
+    @frequency))
 
 (defn lookup-opt [opt-key opts]
   (second (drop-while #(not= % opt-key) opts)))
@@ -296,14 +291,13 @@
         project-prefix (lookup-opt :project-prefix opts)
         pprefix (or project-prefix (clean-name-version "mranderson" (mranderson-version)))
         srcdeps-relative (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
-        flat-deps (->> (map #(aether/resolve-dependencies :coordinates [%] :repositories repositories) source-dependencies)
+        dep-frequencies (->> (map #(aether/resolve-dependencies :coordinates [%] :repositories repositories) source-dependencies)
                              (map #(aether/dependency-hierarchy  source-dependencies %))
-                             (mapcat flat-dep-tree)
-                             (apply hash-map))
-        dep-comparator (comparator (partial compare-deps flat-deps))
+                             dep-frequency)
+        dep-frequency-comp (comparator #(<= (-> %1 first dep-frequencies) (-> %2 first dep-frequencies)))
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))
-        ordered-hierarchy (into (sorted-map-by dep-comparator) dep-hierarchy)
+        ordered-hierarchy (into (sorted-map-by dep-frequency-comp) dep-hierarchy)
         uuid (str (UUID/randomUUID))
         prefix-exclusions (lookup-opt :prefix-exclusions opts)
         skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
