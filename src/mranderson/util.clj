@@ -19,8 +19,11 @@
             (remove (fn [file]
                       (some #(.startsWith (str file) %) excl-dirs) ))
             (filter (fn [^File file]
-                      (and (.isFile file)
-                           (.endsWith (.getName file) ".clj")))))))
+                      (let [file-name (.getName file)]
+                        (and (.isFile file)
+                             (or
+                              (.endsWith file-name ".cljc")
+                              (.endsWith file-name ".clj")))))))))
   ([dirs]
      (clojure-source-files-relative dirs nil)))
 

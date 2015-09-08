@@ -1,10 +1,10 @@
 (ns leiningen.source-deps
   (:require [mranderson.util :refer :all]
+            [mranderson.move :as move]
             [cemerick.pomegranate.aether :as aether]
             [me.raynes.fs :as fs]
             [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure.tools.namespace.move :refer [move-ns]]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
             [clojure.pprint :as pp]
             [leiningen.core.main :refer [info debug]]
@@ -33,7 +33,7 @@
      (->> entries
           (filter #(not (.isDirectory ^java.util.zip.ZipEntry %)))
           (map #(.getName %))
-          (filter #(.endsWith % ".clj"))))))
+          (filter #(or (.endsWith % ".clj") (.endsWith % ".cljc")))))))
 
 (defn- cljfile->prefix [clj-file]
   (->> (str/split clj-file #"/")
@@ -60,10 +60,11 @@
          (str/join "."))))
 
 (defn- replacement [prefix postfix underscorize?]
-  (->> (if underscorize? (-> postfix
-                             str
-                             (str/replace "-" "_"))
-           postfix)
+  (->> (if underscorize?
+         (-> postfix
+             str
+             (str/replace "-" "_"))
+         postfix)
        vector
        (concat [prefix])
        (str/join "." )
@@ -245,7 +246,7 @@
       (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [import (find-orig-import imports clj-file)
               new-ns (replacement repl-prefix old-ns nil)
-              new-deftype (replacement repl-prefix old-ns true)]
+              new-deftype (replacement (str/replace repl-prefix "-" "_") old-ns true)]
           (debug "    new ns:" new-ns)
           ;; garble imports
           (when-not (str/blank? import)
@@ -255,7 +256,7 @@
             (doseq [file (clojure-source-files [srcdeps])]
               (update-deftypes file old-ns new-deftype)))
           ;; move actual ns-s
-          (move-ns old-ns new-ns srcdeps [srcdeps]))
+          (move/move-ns old-ns new-ns srcdeps [srcdeps]))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
           (let [old-path (str "target/srcdeps/" clj-file)
