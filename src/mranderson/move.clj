@@ -103,7 +103,7 @@
         (when (empty? (.listFiles dir))
           (.delete dir)
           (recur (.getParentFile dir)))))
-    (throw FileNotFoundException (format "file for %s not found in %s" old-sym source-path))))
+    (throw (FileNotFoundException. (format "file for %s not found in %s" old-sym source-path)))))
 
 (defn move-ns
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
