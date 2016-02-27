@@ -14,8 +14,6 @@
 
 (defn- zip-target-file
   [target-dir entry-path]
-  ;; remove leading slash in case some bonehead created a zip with absolute
-  ;; file paths in it.
   (let [entry-path (str/replace-first (str entry-path) #"^/" "")]
     (fs/file target-dir entry-path)))
 
@@ -33,7 +31,9 @@
      (->> entries
           (filter #(not (.isDirectory ^java.util.zip.ZipEntry %)))
           (map #(.getName %))
-          (filter #(or (.endsWith % ".clj") (.endsWith % ".cljc")))))))
+          (filter #(or (.endsWith % ".clj")
+                       (.endsWith % ".cljc")
+                       (.endsWith % ".cljs")))))))
 
 (defn- cljfile->prefix [clj-file]
   (->> (str/split clj-file #"/")
@@ -44,6 +44,7 @@
   (->> clj-files
        (map cljfile->prefix)
        (remove #(str/blank? %))
+       (remove #(= "clojure.core" %))
        (reduce #(if (%1 %2) (assoc %1 %2 (inc (%1 %2))) (assoc %1 %2 1) ) {})
        (filter #(< 1 (val %)))
        (map first)
@@ -256,7 +257,7 @@
             (doseq [file (clojure-source-files [srcdeps])]
               (update-deftypes file old-ns new-deftype)))
           ;; move actual ns-s
-          (move/move-ns old-ns new-ns srcdeps [srcdeps]))
+          (move/move-ns old-ns new-ns srcdeps (file->extension (str clj-file)) [srcdeps]))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
           (let [old-path (str "target/srcdeps/" clj-file)

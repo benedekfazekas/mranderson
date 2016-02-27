@@ -23,6 +23,7 @@
                         (and (.isFile file)
                              (or
                               (.endsWith file-name ".cljc")
+                              (.endsWith file-name ".cljs")
                               (.endsWith file-name ".clj")))))))))
   ([dirs]
      (clojure-source-files-relative dirs nil)))
@@ -113,3 +114,7 @@
     (assert (string? v)
             (str "Something went wrong, version is not a string: " v))
     v))
+
+(defn file->extension
+  [file]
+  (re-find #"\.clj[cs]?$" file))
