@@ -68,7 +68,7 @@
   ;; LispReader.java uses #"[:]?([\D&&[^/]].*/)?([\D&&[^/]][^/]*)" but
   ;; that's too broad; we don't want a whole namespace-qualified symbol,
   ;; just each part individually.
-  #"[a-zA-Z0-9$%*+=?!<>_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
+  #"\"?[a-zA-Z0-9$%*+=?!<>_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
 
 (defn replace-ns-symbol
   "ALPHA: subject to change. Given Clojure source as a string, replaces
