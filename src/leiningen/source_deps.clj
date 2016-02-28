@@ -308,7 +308,7 @@
     (info "project prefix: " pprefix)
     (info "retrieve dependencies and munge clojure source files")
     (doall (map (partial unzip&update-artifact! name version pprefix uuid skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys ordered-hierarchy)))
-    (when-not skip-repackage-java-classes
+    (when-not (or skip-repackage-java-classes (empty? (class-files)))
       (class-deps-jar!)
       (apply-jarjar! name version)
       (replace-class-deps!))))
