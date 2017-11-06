@@ -8,7 +8,7 @@
   :java-source-paths ["java-src"]
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
-  :dependencies [^:source-dep [com.cemerick/pomegranate "0.3.0"]
+  :dependencies [^:source-dep [com.cemerick/pomegranate "0.4.0"]
                  ^:source-dep [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ^:source-dep [me.raynes/fs "1.4.6"]
                  [com.googlecode.jarjar/jarjar "1.3"]]
