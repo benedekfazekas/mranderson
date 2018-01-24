@@ -73,7 +73,7 @@ A bit of additional magic happens when you use the built in profile: it actively
 
 ## Rationale
 
-Some might argue that the clojure (and java) way of dependency handling is broken. Nonetheless what npm does for node.js namely nested, local dependencies just feels right. And altough javascript land is a different world the same can be used at least for certain projects in clojure as well. Perhaps not all but some projects, specially the ones related to tooling and commons like libraries which a lot of other projects are depending on. These can benefit from this style of dependency handling.
+Some might argue that the clojure (and java) way of dependency handling is broken. Nonetheless what npm does for node.js namely nested, local dependencies just feels right. And although javascript land is a different world the same can be used at least for certain projects in clojure as well. Perhaps not all but some projects, specially the ones related to tooling and commons like libraries which a lot of other projects are depending on. These can benefit from this style of dependency handling.
 
 **MrAnderson?! Why?**
 
