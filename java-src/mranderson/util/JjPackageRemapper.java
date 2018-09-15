@@ -20,9 +20,9 @@
 
 package mranderson.util;
 
-import com.tonicsystems.jarjar.*;
-import com.tonicsystems.jarjar.asm.*;
-import com.tonicsystems.jarjar.asm.commons.*;
+import org.pantsbuild.jarjar.*;
+import org.objectweb.asm.*;
+import org.objectweb.asm.commons.*;
 import java.util.*;
 import java.util.regex.Pattern;
 

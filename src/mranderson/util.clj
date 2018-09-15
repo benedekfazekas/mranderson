@@ -5,9 +5,9 @@
             [leiningen.core.main :refer [info]]
             [clojure.java.io :as io])
   (:import [java.io File]
-           [com.tonicsystems.jarjar Rule]
+           [org.pantsbuild.jarjar Rule]
            [mranderson.util JjPackageRemapper JjMainProcessor]
-           [com.tonicsystems.jarjar.ext_util StandaloneJarProcessor]))
+           [org.pantsbuild.jarjar.util StandaloneJarProcessor]))
 
 (defn clojure-source-files-relative
   ([dirs excl-dir]

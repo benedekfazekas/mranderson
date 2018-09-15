@@ -20,8 +20,8 @@
 
 package mranderson.util;
 
-import com.tonicsystems.jarjar.*;
-import com.tonicsystems.jarjar.ext_util.*;
+import org.pantsbuild.jarjar.*;
+import org.pantsbuild.jarjar.util.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
