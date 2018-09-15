@@ -5,8 +5,6 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :eval-in :leiningen
   :plugins [[thomasa/mranderson "0.4.7-SNAPSHOT"]]
-  :java-source-paths ["java-src"]
-  :javac-options ["-target" "1.6" "-source" "1.6"]
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
   :dependencies [^:source-dep [com.cemerick/pomegranate "0.4.0"]
                  ^:source-dep [org.clojure/tools.namespace "0.3.0-alpha3"]

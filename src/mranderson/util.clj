@@ -5,8 +5,7 @@
             [leiningen.core.main :refer [info]]
             [clojure.java.io :as io])
   (:import [java.io File]
-           [org.pantsbuild.jarjar Rule]
-           [mranderson.util JjPackageRemapper JjMainProcessor]
+           [org.pantsbuild.jarjar MainProcessor PackageRemapper Rule]
            [org.pantsbuild.jarjar.util StandaloneJarProcessor]))
 
 (defn clojure-source-files-relative
@@ -96,7 +95,7 @@
   (let [java-dirs (java-class-dirs)
         name-version (clean-name-version pname pversion)
         rules (map (partial create-rule name-version) java-dirs)
-        processor (JjMainProcessor. rules false false)
+        processor (MainProcessor. rules false false)
         jar-file (io/file (str "target/class-deps.jar"))]
     (info (format "prefixing %s in target/class-deps.jar with %s" java-dirs name-version))
     (StandaloneJarProcessor/run jar-file jar-file processor)))
