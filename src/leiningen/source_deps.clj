@@ -147,9 +147,11 @@
     (when-not (= old new)
       (spit file new))))
 
+(def classname-pattern "[a-zA-Z_\\$][a-zA-Z\\d_\\$]*")
+
 (defn- fix-reference-in-imports [srcdeps repl-prefix imps clj-file]
   (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-    (map #(vector (first %) (str/replace (second %) (re-pattern (str "([^\\.])" (str/replace (name old-ns) "-" "_") "[^\\.]")) (str "$1" (name (replacement (str/replace repl-prefix "-" "_") old-ns true)) " "))) imps)
+    (map #(vector (first %) (str/replace (second %) (re-pattern (str "([^\\.])" (str/replace (name old-ns) "-" "_") "([\\. ]" classname-pattern ")")) (str "$1" (name (replacement (str/replace repl-prefix "-" "_") old-ns true)) "$2"))) imps)
     imps))
 
 (defn- class-deps-jar!

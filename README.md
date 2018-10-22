@@ -8,13 +8,9 @@ Somewhat node.js & npm style dependency handling as a leiningen plugin.
 
 It is an inlining tool which inlines your project's dependencies at packaging time. It automatically retrieves and prefixes your dependencies (both clojure source and java class files) and munges your clojure files -- mainly the namespace declaration but not only -- accordingly.
 
-## Prerequisites
-
-**IMPORTANT** You need to install leiningen version **2.5.0** at least for this plugin if you want to use the built in profile (see below for explanation). Basic functionality (eg `lein source-deps`) still works though.
-
 ## Usage
 
-Put `[thomasa/mranderson "0.4.8"]` into the `:plugins` vector of your project.clj.
+Put `[thomasa/mranderson "0.4.9"]` into the `:plugins` vector of your project.clj.
 
 Additionally you also need to mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
@@ -62,6 +58,10 @@ and then again
 and you are good to go.
 
 **note** you should not mark clojure itself as a source dependency: there is a limit for everything.
+
+## Related project
+
+A really nice wrapper of mranderson can be found [here](https://github.com/xsc/lein-isolate).
 
 ## Under the hood
 
