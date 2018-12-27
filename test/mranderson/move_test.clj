@@ -23,7 +23,12 @@
             [example.a.four :as four]))
 
 (defn foo []
-  (example.a.four/foo))")
+  (example.a.four/foo))
+
+(def delayed-four
+  (do
+    (require 'example.a.four)
+    (resolve 'example.a.four/foo)))")
 
 (def ex-1
   "(ns example.one
@@ -37,14 +42,12 @@
   (let [temp-file (File/createTempFile dir-name nil)]
     (.delete temp-file)
     (.mkdirs temp-file)
-    (println "temp directory" (.getAbsolutePath temp-file))
     temp-file))
 
 (defn- create-source-file! [^File file ^String content]
   (.delete file)
   (.mkdirs (.getParentFile file))
   (.createNewFile file)
-  (println "writing file: " (.getAbsolutePath file))
   (spit file content)
   file)
 
@@ -66,14 +69,6 @@
 
       (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir])
 
-      (println "affected after move")
-      (doseq [a [file-one file-two new-file-four]]
-        (println (.getAbsolutePath a))
-        (prn (slurp a)))
-      (println "unaffected after move")
-      (println (.getAbsolutePath file-three))
-      (prn (slurp file-three))
-
       (t/is (.exists new-file-four)
           "new file should exist")
       (t/is (not (.exists old-file-four))
@@ -89,4 +84,6 @@
        "file with a reference to ns in body should refer with a symbol")
       (t/is (every? #(.contains (slurp %) "example.b.four")
                     [file-one file-two new-file-four])
-            "affected files should refer to new ns"))))
+            "affected files should refer to new ns")
+      (t/is (= 4 (count (re-seq #"example.b.four" (slurp file-two))))
+            "all occurances of old ns should be replace with new"))))
