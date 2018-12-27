@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.string :as str]
-            [leiningen.core.main :refer [info]]
+            [leiningen.core.main :as lein-main]
             [clojure.java.io :as io])
   (:import [java.io File]
            [com.tonicsystems.jarjar Rule]
@@ -91,6 +91,15 @@
     (. rule setPattern (str java-dir ".**"))
     (. rule setResult (str name-version "." java-dir ".@1"))
     rule))
+
+(defn warn [& args]
+  (apply lein-main/warn args))
+
+(defn info [& args]
+  (apply lein-main/info args))
+
+(defn debug [& args]
+  (apply lein-main/debug args))
 
 (defn apply-jarjar! [pname pversion]
   (let [java-dirs (java-class-dirs)

@@ -22,7 +22,9 @@
   mranderson.move
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [mranderson.util :as util])
+            [mranderson.util :as util]
+            [rewrite-clj.zip :as z]
+            [rewrite-clj.zip.base :as b])
   (:import (java.io File FileNotFoundException)))
 
 (defn- update-file
@@ -75,14 +77,17 @@
   all occurrences of the namespace name old-sym with new-sym and
   returns modified source as a string."
   [source old-sym new-sym]
-  (let [old-name (name old-sym)
-        new-name (name new-sym)]
-    ;; A lossless parser would be better, but this is adequate
-    (str/replace source symbol-regex
-                 (fn [match]
-                   (if (= match old-name)
-                     new-name
-                     match)))))
+  (let [old-name-prefix (str (name old-sym) "/")]
+    (or (loop [loc (z/of-string source)]
+          (if-let [found-node (some-> (z/find-next-depth-first loc (fn [node] (when-not (#{:uneval} (b/tag node))
+                                                                                (when-let [node-sexpr (b/sexpr node)]
+                                                                                  (or
+                                                                                   (= node-sexpr old-sym)
+                                                                                   (str/starts-with? node-sexpr old-name-prefix))))))
+                                      (z/edit (fn [node-sexpr] (symbol (str/replace-first node-sexpr (name old-sym) (name new-sym))))))]
+            (recur found-node)
+            (z/root-string loc)))
+        source)))
 
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative

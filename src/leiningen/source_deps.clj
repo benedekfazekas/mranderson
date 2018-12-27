@@ -7,7 +7,6 @@
             [clojure.java.io :as io]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
             [clojure.pprint :as pp]
-            [leiningen.core.main :refer [info debug]]
             [clojure.edn :as edn])
   (:import [java.util.zip ZipFile ZipEntry ZipOutputStream]
            [java.util UUID]))
