@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/benedekfazekas/mranderson/tree/0.5.x.svg?style=svg)](https://circleci.com/gh/benedekfazekas/mranderson/tree/0.5.x)
+
 # MrAnderson
 
 Dependencies as source: used as if part of the project itself.
