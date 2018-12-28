@@ -66,25 +66,39 @@
                       (update? (str file) extension))))
        (map #(.getCanonicalFile ^File %))))
 
+(defn- contains-sym? [old-sym node]
+  (let [old-name-prefix (str (name old-sym) "/")
+        old-name-kw-prefix (str ":" old-name-prefix)]
+    (when-not (#{:uneval} (b/tag node))
+      (when-let [node-sexpr (b/sexpr node)]
+        (or
+         (= node-sexpr old-sym)
+         (str/starts-with? node-sexpr old-name-prefix)
+         (str/starts-with? node-sexpr old-name-kw-prefix))))))
+
+(defn- replace-in-node [old-sym new-sym old-node]
+  (let [new-node (-> (if (keyword? old-node)
+                        (str (namespace old-node) "/" (name old-node))
+                        old-node)
+                      (str/replace-first (name old-sym) (name new-sym)))]
+    (cond
+      (symbol? old-node) (symbol new-node)
+
+      (keyword? old-node) (keyword new-node)
+
+      :default new-node)))
+
 (defn replace-ns-symbol
   "ALPHA: subject to change. Given Clojure source as a string, replaces
   all occurrences of the namespace name old-sym with new-sym and
   returns modified source as a string."
   [source old-sym new-sym]
-  (let [old-name-prefix (str (name old-sym) "/")]
-    (or (loop [loc (z/of-string source)]
-          (if-let [found-node (some-> (z/find-next-depth-first loc (fn [node] (when-not (#{:uneval} (b/tag node))
-                                                                                (when-let [node-sexpr (b/sexpr node)]
-                                                                                  (or
-                                                                                   (= node-sexpr old-sym)
-                                                                                   (str/starts-with? node-sexpr old-name-prefix))))))
-                                      (z/edit (fn [node-sexpr] (let [new-sexpr (str/replace-first node-sexpr (name old-sym) (name new-sym))]
-                                                                 (if (symbol? node-sexpr)
-                                                                   (symbol new-sexpr)
-                                                                   new-sexpr)))))]
-            (recur found-node)
-            (z/root-string loc)))
-        source)))
+  (or (loop [loc (z/of-string source)]
+        (if-let [found-node (some-> (z/find-next-depth-first loc (partial contains-sym? old-sym))
+                                    (z/edit (partial replace-in-node old-sym new-sym)))]
+          (recur found-node)
+          (z/root-string loc)))
+      source))
 
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
