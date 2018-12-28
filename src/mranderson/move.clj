@@ -66,12 +66,6 @@
                       (update? (str file) extension))))
        (map #(.getCanonicalFile ^File %))))
 
-(def ^:private symbol-regex
-  ;; LispReader.java uses #"[:]?([\D&&[^/]].*/)?([\D&&[^/]][^/]*)" but
-  ;; that's too broad; we don't want a whole namespace-qualified symbol,
-  ;; just each part individually.
-  #"\"?[a-zA-Z0-9$%*+=?!<>_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
-
 (defn replace-ns-symbol
   "ALPHA: subject to change. Given Clojure source as a string, replaces
   all occurrences of the namespace name old-sym with new-sym and
@@ -84,7 +78,10 @@
                                                                                   (or
                                                                                    (= node-sexpr old-sym)
                                                                                    (str/starts-with? node-sexpr old-name-prefix))))))
-                                      (z/edit (fn [node-sexpr] (symbol (str/replace-first node-sexpr (name old-sym) (name new-sym))))))]
+                                      (z/edit (fn [node-sexpr] (let [new-sexpr (str/replace-first node-sexpr (name old-sym) (name new-sym))]
+                                                                 (if (symbol? node-sexpr)
+                                                                   (symbol new-sexpr)
+                                                                   new-sexpr)))))]
             (recur found-node)
             (z/root-string loc)))
         source)))

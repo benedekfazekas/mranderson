@@ -26,6 +26,7 @@
   (example.a.four/foo))
 
 (def delayed-four
+  (pritnln \"example.a.four/\")
   (do
     (require 'example.a.four)
     (resolve 'example.a.four/foo)))")
@@ -69,6 +70,14 @@
 
       (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir])
 
+      ;; (println "affected after move")
+      ;; (doseq [a [file-one file-two new-file-four]]
+      ;;   (println (.getAbsolutePath a))
+      ;;   (prn (slurp a)))
+      ;; (println "unaffected after move")
+      ;; (println (.getAbsolutePath file-three))
+      ;; (prn (slurp file-three))
+
       (t/is (.exists new-file-four)
           "new file should exist")
       (t/is (not (.exists old-file-four))
@@ -85,5 +94,7 @@
       (t/is (every? #(.contains (slurp %) "example.b.four")
                     [file-one file-two new-file-four])
             "affected files should refer to new ns")
-      (t/is (= 4 (count (re-seq #"example.b.four" (slurp file-two))))
-            "all occurances of old ns should be replace with new"))))
+      (t/is (= 5 (count (re-seq #"example.b.four" (slurp file-two))))
+            "all occurances of old ns should be replace with new")
+      (t/is (re-find #"\"example.b.four/\"" (slurp file-two))
+            "type of occurence is retained"))))
