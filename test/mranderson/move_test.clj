@@ -18,9 +18,14 @@
   (:require [example.five :as five]))")
 
 (def ex-2
-  "(ns example.two
+  "(ns
+  ^{:added \"0.0.1\"}
+  example.two
   (:require [example.three :as three]
-            [example.a.four :as four]))
+            [example.a.four :as four]
+            [example.a
+             [foo]
+             [bar]]))
 
 (defn foo []
   (example.a.four/foo))
@@ -54,7 +59,7 @@
   file)
 
 ;; this test is a slightly rewritten version of the original test for c.t.namespace.move from https://github.com/clojure/tools.namespace/blob/master/src/test/clojure/clojure/tools/namespace/move_test.clj
-(t/deftest t-move-ns
+(t/deftest move-ns-test
   (let [temp-dir      (create-temp-dir! "tools-namespace-t-move-ns")
         src-dir       (io/file temp-dir "src")
         example-dir   (io/file temp-dir "src" "example")
@@ -100,4 +105,6 @@
       (t/is (re-find #"\"example.b.four/\"" (slurp file-two))
             "type of occurence is retained if string")
       (t/is (re-find #"\(:example.b.four/" (slurp file-one))
-            "type of occurence is retained if keyword"))))
+            "type of occurence is retained if keyword")
+      (t/is (re-find #"\[example\.b\s*\[foo\]\s*\[bar\]\]" (slurp file-two))
+            "prefixes should be replaced"))))

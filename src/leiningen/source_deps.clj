@@ -45,7 +45,7 @@
        (remove #(str/blank? %))
        (remove #(= "clojure.core" %))
        (reduce #(if (%1 %2) (assoc %1 %2 (inc (%1 %2))) (assoc %1 %2 1) ) {})
-       (filter #(< 1 (val %)))
+                                        ;(filter #(< 1 (val %)))
        (map first)
        (map #(str/replace % "_" "-"))))
 
@@ -196,8 +196,8 @@
                            (map class-name->package-name)
                            set)]
     (info (format "    prefixing imports in clojure files in '%s' ..." (first clj-dep-path)))
-    (debug "class-names" class-names)
-    (debug "package-names" package-names)
+    (debug "      class-names" class-names)
+    (debug "      package-names" package-names)
     (doseq [file clj-files]
       (let [old (slurp (fs/file file))
             orig-import (find-orig-import imports file)
@@ -236,6 +236,15 @@
                      (remove nil?)
                      doall)
         fixed-imports (reduce (partial fix-reference-in-imports srcdeps repl-prefix) imports clj-files)]
+    ;; recur on transitive deps, omit clojure itself
+    (when-let [trans-deps (dep-hierarchy dep)]
+      (debug (format "resolving transitive dependencies for %s:" art-name))
+      (debug trans-deps)
+      (->> trans-deps
+           keys
+           (remove #(= (first %) (symbol "org.clojure/clojure")))
+           (map (partial unzip&update-artifact! pname pversion pprefix uuid skip-repackage-java-classes srcdeps (fs/file src-path (str/join "/" [art-name-cleaned art-version])) trans-deps prefix-exclusions))
+           doall))
     (info (format "  retrieving %s artifact."  art-name))
     (debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
     (debug "   modified namespace prefix: " repl-prefix)
@@ -271,17 +280,8 @@
               (fs/delete old-path)))))
     ;; fixing prefixes, degarble imports
     (doseq [file (clojure-source-files [srcdeps])]
-      (doall (map (partial update-file file prefixes) (keys prefixes)))
-      (degarble-imports! fixed-imports file uuid))
-    ;; recur on transitive deps, omit clojure itself
-    (when-let [trans-deps (dep-hierarchy dep)]
-      (debug (format "resolving transitive dependencies for %s:" art-name))
-      (debug trans-deps)
-      (->> trans-deps
-           keys
-           (remove #(= (first %) (symbol "org.clojure/clojure")))
-           (map (partial unzip&update-artifact! pname pversion pprefix uuid skip-repackage-java-classes srcdeps (fs/file src-path (str/join "/" [art-name-cleaned art-version])) trans-deps prefix-exclusions))
-           doall))))
+      ;(doall (map (partial update-file file prefixes) (keys prefixes)))
+      (degarble-imports! fixed-imports file uuid))))
 
 (defn source-deps
   "Dependencies as source: used as if part of the project itself.
