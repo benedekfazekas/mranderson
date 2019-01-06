@@ -75,38 +75,35 @@
   (= node-sexpr old-sym))
 
 (defn- prefix?
-  [node-sexpr old-name-prefix]
-  (str/starts-with? node-sexpr old-name-prefix))
+  [node-sexpr old-sym]
+  (let [old-name-prefix (str (name old-sym) "/")]
+    (str/starts-with? node-sexpr old-name-prefix)))
 
 (defn- kw-prefix?
-  [node-sexpr old-name-kw-prefix]
-  (str/starts-with? node-sexpr old-name-kw-prefix))
+  [node-sexpr old-sym]
+  (let [old-name-kw-prefix (str ":" (str (name old-sym) "/"))]
+    (str/starts-with? node-sexpr old-name-kw-prefix)))
 
 (defn- libspec-prefix?
-  [parent-leftmost-sexpr node-sexpr old-sym-prefix-libspec]
-  (and (= :require parent-leftmost-sexpr)
-       (= node-sexpr old-sym-prefix-libspec)))
+  [parent-leftmost-sexpr node-sexpr old-sym]
+  (let [old-sym-prefix-libspec (prefix-libspec old-sym)]
+    (and (= :require parent-leftmost-sexpr)
+         (= node-sexpr old-sym-prefix-libspec))))
 
 (defn- contains-sym? [old-sym node]
-  (let [old-name-prefix        (str (name old-sym) "/")
-        old-name-kw-prefix     (str ":" old-name-prefix)
-        old-sym-prefix-libspec (prefix-libspec old-sym)]
-    (when-not (#{:uneval} (b/tag node))
-      (when-let [node-sexpr (b/sexpr node)]
-        (let [parent-leftmost-node (z/leftmost (z/up node))
-              parent-leftmost-sexpr (and parent-leftmost-node
-                                         (not
-                                          (#{:uneval}
-                                           (b/tag parent-leftmost-node)))
-                                         (b/sexpr parent-leftmost-node))]
-          (or
-           (sexpr= node-sexpr old-sym)
-           (libspec-prefix?
-            parent-leftmost-sexpr
-            node-sexpr
-            old-sym-prefix-libspec)
-           (prefix? node-sexpr old-name-prefix)
-           (kw-prefix? node-sexpr old-name-kw-prefix)))))))
+  (when-not (#{:uneval} (b/tag node))
+    (when-let [node-sexpr (b/sexpr node)]
+      (let [parent-leftmost-node  (z/leftmost (z/up node))
+            parent-leftmost-sexpr (and parent-leftmost-node
+                                       (not
+                                        (#{:uneval}
+                                         (b/tag parent-leftmost-node)))
+                                       (b/sexpr parent-leftmost-node))]
+        (or
+         (sexpr= node-sexpr old-sym)
+         (libspec-prefix? parent-leftmost-sexpr node-sexpr old-sym)
+         (prefix? node-sexpr old-sym)
+         (kw-prefix? node-sexpr old-sym))))))
 
 (defn- replace-in-node [old-sym new-sym old-node]
   (let [old-prefix (prefix-libspec old-sym)
