@@ -70,9 +70,21 @@
   (let [prefix (str/join "." (butlast (str/split (name libspec) #"\.")))]
     (and prefix (symbol prefix))))
 
+(defn- java-package [sym]
+  (str/replace (name sym) "-" "_"))
+
 (defn- sexpr=
   [node-sexpr old-sym]
   (= node-sexpr old-sym))
+
+(defn- java-style-prefix?
+  [node node-sexpr old-sym]
+  (let [old-as-java-pkg (java-package old-sym)
+        java-pkg-prefix (str old-as-java-pkg ".")]
+    (and
+     (str/includes? (name old-sym) "-")
+     (or (= node-sexpr (symbol old-as-java-pkg))
+         (str/starts-with? node-sexpr java-pkg-prefix)))))
 
 (defn- prefix?
   [node-sexpr old-sym]
@@ -85,42 +97,49 @@
     (str/starts-with? node-sexpr old-name-kw-prefix)))
 
 (defn- libspec-prefix?
-  [parent-leftmost-sexpr node-sexpr old-sym]
-  (let [old-sym-prefix-libspec (prefix-libspec old-sym)]
+  [node node-sexpr old-sym]
+  (let [old-sym-prefix-libspec (prefix-libspec old-sym)
+        parent-leftmost-node  (z/leftmost (z/up node))
+        parent-leftmost-sexpr (and parent-leftmost-node
+                                   (not
+                                    (#{:uneval}
+                                     (b/tag parent-leftmost-node)))
+                                   (b/sexpr parent-leftmost-node))]
     (and (= :require parent-leftmost-sexpr)
          (= node-sexpr old-sym-prefix-libspec))))
 
 (defn- contains-sym? [old-sym node]
   (when-not (#{:uneval} (b/tag node))
     (when-let [node-sexpr (b/sexpr node)]
-      (let [parent-leftmost-node  (z/leftmost (z/up node))
-            parent-leftmost-sexpr (and parent-leftmost-node
-                                       (not
-                                        (#{:uneval}
-                                         (b/tag parent-leftmost-node)))
-                                       (b/sexpr parent-leftmost-node))]
-        (or
-         (sexpr= node-sexpr old-sym)
-         (libspec-prefix? parent-leftmost-sexpr node-sexpr old-sym)
-         (prefix? node-sexpr old-sym)
-         (kw-prefix? node-sexpr old-sym))))))
+      (or
+       (sexpr= node-sexpr old-sym)
+       (java-style-prefix? node node-sexpr old-sym)
+       (libspec-prefix? node node-sexpr old-sym)
+       (prefix? node-sexpr old-sym)
+       (kw-prefix? node-sexpr old-sym)))))
+
+(defn- ->new-node [old-node old-sym new-sym]
+  (let [old-prefix (prefix-libspec old-sym)]
+    (cond-> old-node
+
+      (keyword? old-node)
+      (#(str (namespace %) "/" (name %)))
+
+      :always
+      (str/replace-first
+       (name old-sym)
+       (name new-sym))
+
+      (str/includes? (name old-sym) "-")
+      (str/replace-first (java-package old-sym) (java-package new-sym))
+
+      (= old-prefix old-node)
+      (str/replace-first
+       (name old-prefix)
+       (name (prefix-libspec new-sym))))))
 
 (defn- replace-in-node [old-sym new-sym old-node]
-  (let [old-prefix (prefix-libspec old-sym)
-        new-node (cond-> old-node
-
-                   (keyword? old-node)
-                   (#(str (namespace %) "/" (name %)))
-
-                   :always
-                   (str/replace-first
-                    (name old-sym)
-                    (name new-sym))
-
-                   (= old-prefix old-node)
-                   (str/replace-first
-                    (name old-prefix)
-                    (name (prefix-libspec new-sym))))]
+  (let [new-node (->new-node old-node old-sym new-sym)]
     (cond
       (symbol? old-node) (symbol new-node)
 

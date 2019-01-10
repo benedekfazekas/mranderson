@@ -76,20 +76,6 @@
     (when-not (= old new)
       (spit file new))))
 
-(defn- update-file [file prefixes prefix]
-  (let [old (slurp file)
-        new (-> (str/replace old (re-pattern (str "(\\[\\s*)" prefix "(\\s+\\[?)")) (str "$1" (prefixes prefix) "$2"))
-                (str/replace (re-pattern (str "(\\s+\\(?)" prefix "([\\s\\.])")) (str "$1" (prefixes prefix) "$2")))]
-    (when-not (= old new)
-      (spit file new))))
-
-(defn- update-deftypes [file old-ns new-deftype]
-  (let [old (slurp file)
-        old-deftype-prefix (-> old-ns name (str/replace "-" "_"))
-        new (str/replace old (re-pattern (str "([\\s\\^]+)" old-deftype-prefix)) (str "$1" (name new-deftype)))]
-    (when-not (= old new)
-      (spit file new))))
-
 (defn- import-fragment-left [clj-source]
   (let [index-of-import (.indexOf clj-source ":import")]
     (when (> index-of-import -1)
@@ -118,14 +104,6 @@
 
                                    :default open-close)))))))
 
-(defn- garble-import! [file-prefix file import-fragment uuid]
-  (let [old (slurp (fs/file file-prefix file))
-        new (if import-fragment
-              (str/replace old import-fragment (str "\"" uuid "\""))
-              old)]
-    (when-not (= old new)
-      (spit (fs/file file-prefix file) new))))
-
 (defn- retrieve-import [file-prefix file]
   (let [cont (slurp (fs/file file-prefix file))
         import-fragment (import-fragment cont)]
@@ -138,20 +116,6 @@
           (if (.endsWith (str file) (str (first imp)))
             (second imp)
             (recur (rest imps))))) ""))
-
-(defn- degarble-imports! [imports file uuid]
-  (let [old (slurp file)
-        orig-import (find-orig-import imports file)
-        new (str/replace old (str "\"" uuid "\"") orig-import)]
-    (when-not (= old new)
-      (spit file new))))
-
-(def classname-pattern "[a-zA-Z_\\$][a-zA-Z\\d_\\$]*")
-
-(defn- fix-reference-in-imports [srcdeps repl-prefix imps clj-file]
-  (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-    (map #(vector (first %) (str/replace (second %) (re-pattern (str "([^\\.])" (str/replace (name old-ns) "-" "_") "([\\. ]" classname-pattern ")")) (str "$1" (name (replacement (str/replace repl-prefix "-" "_") old-ns true)) "$2"))) imps)
-    imps))
 
 (defn- class-deps-jar!
   "creates jar containing the deps class files"
@@ -198,17 +162,19 @@
     (info (format "    prefixing imports in clojure files in '%s' ..." (first clj-dep-path)))
     (debug "      class-names" class-names)
     (debug "      package-names" package-names)
-    (doseq [file clj-files]
-      (let [old (slurp (fs/file file))
-            orig-import (find-orig-import imports file)
-            new-import (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
-            uuid (str (UUID/randomUUID))
-            new (str/replace old orig-import uuid)
-            new (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
-            new (str/replace new uuid new-import)]
-        (when-not (= old new)
-          (debug "file: " file " orig import:" orig-import " new import:" new-import)
-          (spit file new))))))
+    (when (seq class-names)
+      (doseq [file clj-files]
+        (let [old         (slurp (fs/file file))
+              orig-import (find-orig-import imports file)
+              new-import  (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
+              uuid        (str (UUID/randomUUID))
+              new         (str/replace old orig-import uuid)
+              new         (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
+              new         (str/replace new uuid new-import)]
+          (when-not (= old new)
+            (debug "file: " file " orig import:" orig-import " new import:" new-import)
+            (spit file new)))))
+    (info "    prefixing imports done")))
 
 (defn- dep-frequency [dep-hierarchy]
   (let [frequency (atom {})
@@ -224,18 +190,13 @@
 (defn lookup-opt [opt-key opts]
   (second (drop-while #(not= % opt-key) opts)))
 
-(defn- unzip&update-artifact! [pname pversion pprefix uuid skip-repackage-java-classes srcdeps src-path dep-hierarchy prefix-exclusions dep]
+(defn- unzip&update-artifact! [pname pversion pprefix skip-repackage-java-classes srcdeps src-path dep-hierarchy prefix-exclusions dep]
   (let [art-name (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version (str "v" (-> dep second (str/replace "." "v")))
         clj-files (doall (unzip (-> dep meta :file) srcdeps))
         repl-prefix (replacement-prefix pprefix "srcdeps" src-path art-name-cleaned art-version nil)
-        prefixes (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
-        imports (->> clj-files
-                     (reduce #(conj %1 (retrieve-import srcdeps %2)) [])
-                     (remove nil?)
-                     doall)
-        fixed-imports (reduce (partial fix-reference-in-imports srcdeps repl-prefix) imports clj-files)]
+        prefixes (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)]
     ;; recur on transitive deps, omit clojure itself
     (when-let [trans-deps (dep-hierarchy dep)]
       (debug (format "resolving transitive dependencies for %s:" art-name))
@@ -243,7 +204,7 @@
       (->> trans-deps
            keys
            (remove #(= (first %) (symbol "org.clojure/clojure")))
-           (map (partial unzip&update-artifact! pname pversion pprefix uuid skip-repackage-java-classes srcdeps (fs/file src-path (str/join "/" [art-name-cleaned art-version])) trans-deps prefix-exclusions))
+           (map (partial unzip&update-artifact! pname pversion pprefix skip-repackage-java-classes srcdeps (fs/file src-path (str/join "/" [art-name-cleaned art-version])) trans-deps prefix-exclusions))
            doall))
     (info (format "  retrieving %s artifact."  art-name))
     (debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
@@ -255,18 +216,8 @@
         (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
     (doseq [clj-file clj-files]
       (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-        (let [import (find-orig-import imports clj-file)
-              new-ns (replacement repl-prefix old-ns nil)
-              new-deftype (replacement (str/replace repl-prefix "-" "_") old-ns true)]
+        (let [new-ns (replacement repl-prefix old-ns nil)]
           (debug "    new ns:" new-ns)
-          ;; garble imports
-          (when-not (str/blank? import)
-            (garble-import! srcdeps clj-file import uuid))
-          ;; fixing generated classes/deftypes
-          (when (.contains (name old-ns) "-")
-            (doseq [file (clojure-source-files [srcdeps])]
-              (update-deftypes file old-ns new-deftype)))
-          ;; move actual ns-s
           (move/move-ns old-ns new-ns srcdeps (file->extension (str clj-file)) [srcdeps]))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
@@ -277,11 +228,7 @@
               (doseq [file (clojure-source-files [srcdeps])]
                 (update-path-in-file file clj-file new-path))
               ;; remove old file
-              (fs/delete old-path)))))
-    ;; fixing prefixes, degarble imports
-    (doseq [file (clojure-source-files [srcdeps])]
-      ;(doall (map (partial update-file file prefixes) (keys prefixes)))
-      (degarble-imports! fixed-imports file uuid))))
+              (fs/delete old-path)))))))
 
 (defn source-deps
   "Dependencies as source: used as if part of the project itself.
@@ -301,14 +248,13 @@
         dep-hierarchy (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                            (aether/dependency-hierarchy source-dependencies))
         ordered-hierarchy (into (sorted-map-by dep-frequency-comp) dep-hierarchy)
-        uuid (str (UUID/randomUUID))
         prefix-exclusions (lookup-opt :prefix-exclusions opts)
         skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
         srcdeps (fs/file target-path "srcdeps")]
     (debug "skip repackage" skip-repackage-java-classes)
     (info "project prefix: " pprefix)
     (info "retrieve dependencies and munge clojure source files")
-    (doall (map (partial unzip&update-artifact! name version pprefix uuid skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys ordered-hierarchy)))
+    (doall (map (partial unzip&update-artifact! name version pprefix skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions) (keys ordered-hierarchy)))
     (when-not (or skip-repackage-java-classes (empty? (class-files)))
       (class-deps-jar!)
       (apply-jarjar! name version)
