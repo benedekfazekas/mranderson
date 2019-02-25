@@ -1,7 +1,6 @@
 (ns mranderson.util
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.string :as str]
             [leiningen.core.main :as lein-main]
             [clojure.java.io :as io])
   (:import [java.io File]
@@ -28,14 +27,21 @@
   ([dirs]
      (clojure-source-files-relative dirs nil)))
 
+(defn sym->file-name
+  [sym]
+  (-> (name sym)
+      (str/replace "-" "_")
+      (str/replace "." File/separator)))
+
 (defn relevant-clj-dep-path [src-path prefix pprefix]
-  (if (.endsWith src-path "target/srcdeps")
-    [(str "target/srcdeps/" prefix)]
-    (vector (str "target/srcdeps/"
-                 pprefix
-                 (-> src-path
-                     (str/split #"target/srcdeps")
-                     last)))))
+  (let [pprefix-path-frag (sym->file-name pprefix)]
+    (if-not (str/ends-with? src-path pprefix-path-frag)
+      (vector (str "target/srcdeps/"
+                   pprefix-path-frag
+                   (-> src-path
+                       (str/split (re-pattern pprefix-path-frag))
+                       last)))
+      [(str "target/srcdeps/" prefix)])))
 
 (defn clojure-source-files [dirs]
   (->> dirs

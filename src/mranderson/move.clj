@@ -37,15 +37,9 @@
     (when-not (= old new)
       (spit file new))))
 
-(defn- sym->file-name
-  [sym]
-  (-> (name sym)
-      (str/replace "-" "_")
-      (str/replace "." File/separator)))
-
 (defn- sym->file
   [path sym extension]
-  (io/file path (str (sym->file-name sym) extension)))
+  (io/file path (str (util/sym->file-name sym) extension)))
 
 (defn- update? [file extension-of-moved]
   (let [file-ext (util/file->extension file)
