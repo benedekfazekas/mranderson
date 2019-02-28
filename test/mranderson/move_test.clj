@@ -5,7 +5,9 @@
   (:import [java.io File]))
 
 (def ex-a-4
-  "(ns example.a.four)
+  "(comment \"foobar comment here\")
+
+(ns example.a.four)
 
 (defn foo []
   (println \"nuf said\"))")
@@ -40,7 +42,6 @@
   (example.a.four/foo))
 
 (def delayed-four
-  (pritnln \"example.a.four/\")
   (do
     (require 'example.a.four)
     (resolve 'example.a.four/foo)))")
@@ -60,6 +61,9 @@
 (deftype SomeType [field])
 
 (defrecord SomeRecord [field])")
+
+(def ex-edn
+  "{:foo \"bar\"}")
 
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]
@@ -88,7 +92,8 @@
         new-file-four (io/file example-dir "b" "four.clj")
         file-five     (create-source-file! (io/file example-dir "five.clj") ex-5)
         old-file-six  (create-source-file! (io/file with-dash-dir "six.clj") ex-6-with-dash)
-        new-file-six  (io/file example-dir "prefix" "with_dash" "six.clj")]
+        new-file-six  (io/file example-dir "prefix" "with_dash" "six.clj")
+        file-edn      (create-source-file! (io/file example-dir "edn.clj") ex-edn)]
 
     (let [file-three-last-modified (.lastModified file-three)]
 
@@ -101,8 +106,9 @@
         ;;   (println (.getAbsolutePath a))
         ;;   (prn (slurp a)))
         ;; (println "unaffected after move")
-        ;; (println (.getAbsolutePath file-three))
-        ;; (prn (slurp file-three))
+        ;; (doseq [a [file-three file-edn]]
+        ;;   (println (.getAbsolutePath a))
+        ;;   (prn (slurp a)))
 
         (t/is (.exists new-file-four)
               "new file should exist")
@@ -120,14 +126,14 @@
         (t/is (every? #(.contains (slurp %) "example.b.four")
                       [file-one file-two new-file-four])
               "affected files should refer to new ns")
-        (t/is (= 5 (count (re-seq #"example.b.four" (slurp file-two))))
+        (t/is (= 4 (count (re-seq #"example.b.four" (slurp file-two))))
               "all occurances of old ns should be replace with new")
-        (t/is (re-find #"\"example.b.four/\"" (slurp file-two))
-              "type of occurence is retained if string")
         (t/is (re-find #"\(:example.b.four/" (slurp file-one))
               "type of occurence is retained if keyword")
         (t/is (re-find #"\[example\.b\s*\[foo\]\s*\[bar\]\]" (slurp file-two))
-              "prefixes should be replaced"))
+              "prefixes should be replaced")
+        (t/is (= ex-edn (slurp file-edn))
+         "clj file wo/ ns macro is unchanged"))
       (t/testing "move ns with dash, deftype, defrecord, import"
         (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir])
 

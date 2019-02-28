@@ -182,7 +182,8 @@
               new         (str/replace new uuid new-import)]
           (when-not (= old new)
             (debug "file: " file " orig import:" orig-import " new import:" new-import)
-            (spit file new)))))))
+            (spit file new)))))
+    (info "    prefixing imports: done")))
 
 (defn- dep-frequency [dep-hierarchy]
   (let [frequency (atom {})
