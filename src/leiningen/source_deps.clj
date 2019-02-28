@@ -153,6 +153,13 @@
   (info "unzipping repackaged class-deps.jar into target/srcdeps")
   (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
 
+(defn- filter-clj-files [imports package-names]
+  (if (seq package-names)
+    (->> (filter (fn [[_ import]] (some #(str/includes? import %) package-names)) imports)
+         (map first)
+         (map (partial str "target/srcdeps/")))
+    []))
+
 (defn- prefix-dependency-imports! [pname pversion pprefix prefix src-path srcdeps]
   (let [cleaned-name-version (clean-name-version pname pversion)
         prefix (some-> (first prefix)
@@ -167,11 +174,14 @@
         class-names (map class-file->fully-qualified-name (class-files))
         package-names (->> class-names
                            (map class-name->package-name)
-                           set)]
-    (info (format "    prefixing imports in clojure files in '%s' ..." (first clj-dep-path)))
-    (debug "      class-names" class-names)
-    (debug "      package-names" package-names)
-    (when (seq class-names)
+                           set)
+        clj-files (filter-clj-files imports package-names)]
+    (when (seq clj-files)
+      (info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))
+      (debug "      class-names" class-names)
+      (debug "      package-names" package-names)
+      (debug "      imports" imports)
+      (debug "      clj files" (str/join ":" clj-files))
       (doseq [file clj-files]
         (let [old         (slurp (fs/file file))
               orig-import (find-orig-import imports file)
@@ -182,8 +192,8 @@
               new         (str/replace new uuid new-import)]
           (when-not (= old new)
             (debug "file: " file " orig import:" orig-import " new import:" new-import)
-            (spit file new)))))
-    (info "    prefixing imports: done")))
+            (spit file new))))
+      (info "    prefixing imports: done"))))
 
 (defn- dep-frequency [dep-hierarchy]
   (let [frequency (atom {})
