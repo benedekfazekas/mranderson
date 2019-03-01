@@ -23,10 +23,11 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [mranderson.util :as util]
-            [clojure.tools.reader.reader-types :as r]
+            [com.climate.claypoole :as cp]
             [rewrite-clj.zip :as z]
             [rewrite-clj.zip.base :as b]
-            [rewrite-clj.parser :as parser])
+            [rewrite-clj.parser :as parser]
+            [rewrite-clj.reader :as reader])
   (:import (java.io File FileNotFoundException PushbackReader)))
 
 (defn- update-file
@@ -35,7 +36,7 @@
   modify file if the content is unchanged."
   [file f & args]
   (let [old (slurp file)
-        new (str (apply f file args))]
+        new (str (apply f old args))]
     (when-not (= old new)
       (spit file new))))
 
@@ -134,25 +135,16 @@
 
 (defn- split-ns-form-ns-body
   "Returns ns form as a rewrite-clj loc and the ns body as string with a place holder for the ns form."
-  [file]
-  (with-open [file-reader (io/reader file)]
-    (let [reader (-> file-reader
-                     (PushbackReader. 2)
-                     (r/indexing-push-back-reader 2))
-          first-form (parser/parse reader)]
-      (loop [ns-form-maybe (z/edn first-form)
-             body-forms    (transient [])]
-        (if (ns-decl? ns-form-maybe)
-          [ns-form-maybe
-           (str
-            (apply str (persistent! body-forms))
-            ns-form-placeholder
-            (slurp file-reader))]
-          (do
-            (conj! body-forms (z/root-string ns-form-maybe))
-            (if-let [next-form (parser/parse reader)]
-              (recur (z/edn next-form) body-forms)
-              [nil (apply str (persistent! body-forms))])))))))
+  [content]
+  (let [reader     (reader/string-reader content)
+        first-form (parser/parse reader)]
+    (loop [ns-form-maybe (and first-form (z/edn first-form))]
+      (if (ns-decl? ns-form-maybe)
+        [ns-form-maybe
+         (str/replace content (z/root-string ns-form-maybe) ns-form-placeholder)]
+        (if-let [next-form (parser/parse reader)]
+          (recur (z/edn next-form))
+          [nil content])))))
 
 (defn- replace-in-ns-form [ns-loc old-sym new-sym]
   (loop [loc ns-loc]
@@ -195,15 +187,15 @@
   Splits the source file, parses the ns macro if found to do all the necessary
   transformations. Works on the body of namepsace as text as simpler transformations
   are needed. When done puts the ns form and body back together."
-  [file old-sym new-sym]
-  (let [[ns-loc source-sans-ns] (split-ns-form-ns-body file)
-        new-ns-form (replace-in-ns-form ns-loc old-sym new-sym)
-        new-source-sans-ns (replace-in-source source-sans-ns old-sym new-sym)]
+  [content old-sym new-sym]
+  (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
+        new-ns-form             (future (replace-in-ns-form ns-loc old-sym new-sym))
+        new-source-sans-ns      (future (replace-in-source source-sans-ns old-sym new-sym))]
     (or
      (and
-      new-ns-form
-      (str/replace new-source-sans-ns ns-form-placeholder new-ns-form))
-     new-source-sans-ns)))
+      @new-ns-form
+      (str/replace @new-source-sans-ns ns-form-placeholder @new-ns-form))
+     @new-source-sans-ns)))
 
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
@@ -237,5 +229,5 @@
   sure you have a backup or version control."
   [old-sym new-sym source-path extension dirs]
   (move-ns-file old-sym new-sym extension source-path)
-  (doseq [file (clojure-source-files dirs extension)]
+  (cp/pdoseq (+ 2 (cp/ncpus)) [file (clojure-source-files dirs extension)]
     (update-file file replace-ns-symbol old-sym new-sym)))
