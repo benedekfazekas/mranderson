@@ -206,18 +206,34 @@
     (clojure.walk/postwalk freq-fn dep-hierarchy)
     @frequency))
 
+(defn- expand-dep
+  [repositories deps-node]
+  (debug "deps-node: " deps-node)
+  (let [res (if (map? deps-node)
+          (->> (map
+                (fn [[k v]]
+                  (->> (aether/resolve-dependencies :coordinates [k] :repositories repositories)
+                       (aether/dependency-hierarchy [k])))
+                deps-node)
+               (into {}))
+          deps-node)]
+    (debug "res: " res)
+    res))
+
+(defn- expand-dep-hierarchy
+  [repositories dep-hierarchy]
+  (clojure.walk/prewalk
+   (partial expand-dep repositories)
+   (zipmap (keys dep-hierarchy) (repeat nil))))
+
 (defn lookup-opt [opt-key opts]
   (second (drop-while #(not= % opt-key) opts)))
 
-(defn- unzip&update-artifact! [pname pversion pprefix skip-repackage-java-classes srcdeps src-path dep-hierarchy prefix-exclusions project-source-dirs parent-clj-dirs dep]
-  (let [art-name         (-> dep first name (str/split #"/") last)
-        art-name-cleaned (str/replace art-name #"[\.-_]" "")
-        art-version      (str "v" (-> dep second (str/replace "." "v")))
-        clj-files        (doall (unzip (-> dep meta :file) srcdeps))
-        clj-dirs         (->> (map cljfile->dir clj-files)
-                              (remove str/blank?)
-                              (map (fn [clj-dir] (str srcdeps "/" clj-dir))) set)
-        repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
+(defn- update-artifact!
+  [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs]}
+   {:keys [art-name-cleaned art-version clj-files clj-dirs]}
+   {:keys [src-path parent-clj-dirs]}]
+  (let [repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
         prefixes         (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
         all-dirs         (->> [(if (str/ends-with? src-path (sym->file-name pprefix))
                                  project-source-dirs
@@ -228,17 +244,8 @@
                                (map fs/file clj-dirs)
                                parent-clj-dirs)
                               vec)]
-    ;; recur on transitive deps, omit clojure and clojurescript
-    (when-let [trans-deps (dep-hierarchy dep)]
-      (debug (format "resolving transitive dependencies for %s:" art-name))
-      (debug trans-deps)
-      (->> trans-deps
-           keys
-           (remove #(#{'org.clojure/clojure 'org.clojure/clojurescript} (first %)))
-           (map (partial unzip&update-artifact! pname pversion pprefix skip-repackage-java-classes srcdeps (fs/file src-path (str/replace (str/join "/" [art-name-cleaned art-version]) "-" "_")) trans-deps prefix-exclusions project-source-dirs (map fs/file clj-dirs)))
-           doall))
-    (info (format "  retrieving %s artifact."  art-name))
-    (debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" (fs/file src-path (str/join "/" [art-name-cleaned art-version])) "parent-clj-dirs: " parent-clj-dirs)
+    (info (format "  munge source files of %s artifact."  art-name-cleaned))
+    (debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
     (debug "   modified namespace prefix: " repl-prefix)
     (debug "    src path: " src-path)
     (debug "    all dirs: " all-dirs)
@@ -264,25 +271,32 @@
             ;; remove old file
             (fs/delete old-path)))))))
 
-(defn- expand-dep
-  [repositories deps-node]
-  (debug "deps-node: " deps-node)
-  (let [res (if (map? deps-node)
-          (->> (map
-                (fn [[k v]]
-                  (->> (aether/resolve-dependencies :coordinates [k] :repositories repositories)
-                       (aether/dependency-hierarchy [k])))
-                deps-node)
-               (into {}))
-          deps-node)]
-    (debug "res: " res)
-    res))
+(defn- unzip-artifact! [{:keys [srcdeps]} {:keys [src-path]} dep]
+  (let [art-name         (-> dep first name (str/split #"/") last)
+        art-name-cleaned (str/replace art-name #"[\.-_]" "")
+        art-version      (str "v" (-> dep second (str/replace "." "v")))
+        clj-files        (doall (unzip (-> dep meta :file) srcdeps))
+        clj-dirs         (->> (map cljfile->dir clj-files)
+                              (remove str/blank?)
+                              (map (fn [clj-dir] (str srcdeps "/" clj-dir)))
+                              set)]
+    (info "unzipping [" art-name-cleaned " [" art-version "]]")
+    (debug (format "resolving transitive dependencies for %s:" art-name))
+    [{:art-name-cleaned art-name-cleaned
+      :art-version      art-version
+      :clj-files        clj-files
+      :clj-dirs         clj-dirs}
+     {:src-path        (fs/file src-path (str/replace (str/join "/" [art-name-cleaned art-version]) "-" "_"))
+      :parent-clj-dirs (map fs/file clj-dirs)}]))
 
-(defn- expand-dep-hierarchy
-  [repositories dep-hierarchy]
-  (clojure.walk/prewalk
-   (partial expand-dep repositories)
-   (zipmap (keys dep-hierarchy) (repeat nil))))
+(defn- walk-dep-tree
+  [deps pre-fn post-fn paths ctx]
+  (doseq [[dep subdeps] deps]
+    (when-not (#{'org.clojure/clojure 'org.clojure/clojurescript} (first dep))
+      (let [[pre-result new-paths] (pre-fn ctx paths dep)]
+        (when subdeps
+          (walk-dep-tree subdeps pre-fn post-fn new-paths ctx))
+        (post-fn ctx pre-result paths)))))
 
 (defn source-deps
   "Dependencies as source: used as if part of the project itself.
@@ -315,11 +329,35 @@
       (do
         (info "working on an unresolved dependency hierarchy")
         (#'ldeps/walk-deps expanded-tree #'ldeps/print-dep)
-        (doall (map (partial unzip&update-artifact! name version pprefix skip-repackage-java-classes srcdeps-relative srcdeps expanded-tree prefix-exclusions project-source-dirs []) (keys expanded-tree))))
+        (walk-dep-tree
+         expanded-tree
+         unzip-artifact!
+         update-artifact!
+         {:src-path        srcdeps
+          :parent-clj-dirs []}
+         {:pname                       name
+          :pversion                    version
+          :pprefix                     pprefix
+          :skip-repackage-java-classes skip-repackage-java-classes
+          :srcdeps                     srcdeps-relative
+          :prefix-exclusions           prefix-exclusions
+          :project-source-dirs         project-source-dirs}))
       (do
         (info "working on a resolved dep hierarchy")
         (#'ldeps/walk-deps dep-hierarchy #'ldeps/print-dep)
-        (doall (map (partial unzip&update-artifact! name version pprefix skip-repackage-java-classes srcdeps-relative srcdeps dep-hierarchy prefix-exclusions project-source-dirs []) (keys ordered-hierarchy)))))
+        (walk-dep-tree
+         ordered-hierarchy
+         unzip-artifact!
+         update-artifact!
+         {:src-path        srcdeps
+          :parent-clj-dirs []}
+         {:pname                       name
+          :pversion                    version
+          :pprefix                     pprefix
+          :skip-repackage-java-classes skip-repackage-java-classes
+          :srcdeps                     srcdeps-relative
+          :prefix-exclusions           prefix-exclusions
+          :project-source-dirs         project-source-dirs})))
     (when-not (or skip-repackage-java-classes (empty? (class-files)))
       (class-deps-jar!)
       (apply-jarjar! name version)
