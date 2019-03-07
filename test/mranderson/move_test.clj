@@ -65,6 +65,24 @@
 (def ex-edn
   "{:foo \"bar\"}")
 
+(def ex-cljc
+  "(ns example.cross
+  #?@(:clj
+  [(:require [example.seven :as seven-clj])]
+  :cljs
+  [(:require [example.seven :as seven-cljs])]))")
+
+(def ex-cljc-expected
+  "(ns example.cross
+  #?@(:clj
+  [(:require [example.clj.seven :as seven-clj])]
+  :cljs
+  [(:require [example.cljs.seven :as seven-cljs])]))")
+
+(def ex-seven-clj "(ns example.seven)")
+
+(def ex-seven-cljs "(ns example.seven)")
+
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]
     (.delete temp-file)
@@ -93,7 +111,10 @@
         file-five     (create-source-file! (io/file example-dir "five.clj") ex-5)
         old-file-six  (create-source-file! (io/file with-dash-dir "six.clj") ex-6-with-dash)
         new-file-six  (io/file example-dir "prefix" "with_dash" "six.clj")
-        file-edn      (create-source-file! (io/file example-dir "edn.clj") ex-edn)]
+        file-edn      (create-source-file! (io/file example-dir "edn.clj") ex-edn)
+        file-cljc     (create-source-file! (io/file example-dir "cross.cljc") ex-cljc)
+        file-seven-clj  (create-source-file! (io/file example-dir "seven.clj") ex-seven-clj)
+        file-seven-cljs (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)]
 
     (let [file-three-last-modified (.lastModified file-three)]
 
@@ -151,4 +172,10 @@
               "affected files should not refer to old ns in imports or body")
         (t/is (every? #(.contains (slurp %) "example.prefix.with_dash.six")
                       [file-five file-three])
-              "affected files should refer to new ns")))))
+              "affected files should refer to new ns"))
+
+      (t/testing "testing cljc file using :clj/cljs macros in require depending on same ns in clj and cljs"
+        (sut/move-ns 'example.seven 'example.clj.seven src-dir ".clj" [src-dir])
+        (sut/move-ns 'example.seven 'example.cljs.seven src-dir ".cljs" [src-dir])
+
+        (t/is (= (slurp file-cljc) ex-cljc-expected))))))

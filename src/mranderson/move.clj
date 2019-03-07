@@ -179,6 +179,24 @@
 (defn- replace-in-source [source-sans-ns old-sym new-sym]
   (str/replace source-sans-ns symbol-regex (partial source-replacement old-sym new-sym)))
 
+(defn- after-platfrom-marker? [platform node]
+  (when-not (#{:uneval} (b/tag node))
+    (= platform (b/sexpr (z/left node)))))
+
+(defn- find-and-replace-platform-specific-subforms [platform ns-loc]
+  (loop [loc         ns-loc
+         found-nodes []]
+    (if-let [found-node (z/find-next-depth-first loc (partial after-platfrom-marker? platform))]
+      (recur (z/replace found-node (symbol (str (name platform) "_require"))) (conj found-nodes found-node))
+      [found-nodes (z/of-string (z/root-string loc))])))
+
+(defn- restore-platform-specific-subforms [platform replaced-nodes ns-form]
+  (loop [form             ns-form
+         [n & rest-nodes] replaced-nodes]
+    (if-not n
+      form
+      (recur (str/replace-first form (str (name platform) "_require") (z/string n)) rest-nodes))))
+
 (defn replace-ns-symbol
   "ALPHA: subject to change. Given Clojure source as a file, replaces
   all occurrences of the namespace name old-sym with new-sym and
@@ -187,14 +205,22 @@
   Splits the source file, parses the ns macro if found to do all the necessary
   transformations. Works on the body of namepsace as text as simpler transformations
   are needed. When done puts the ns form and body back together."
-  [content old-sym new-sym]
+  [content old-sym new-sym extension-of-moved file-ext]
   (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
+        opp-platform       (util/platform-comp (util/extension->platform extension-of-moved))
+        [replaced-nodes ns-loc] (or (and (= ".cljc" file-ext) opp-platform
+                                         (find-and-replace-platform-specific-subforms opp-platform ns-loc))
+                                    [[] ns-loc])
+
         new-ns-form             (future (replace-in-ns-form ns-loc old-sym new-sym))
-        new-source-sans-ns      (future (replace-in-source source-sans-ns old-sym new-sym))]
+        new-source-sans-ns      (future (replace-in-source source-sans-ns old-sym new-sym))
+        new-ns-form             (if (seq replaced-nodes)
+                                  (restore-platform-specific-subforms opp-platform replaced-nodes @new-ns-form)
+                                  @new-ns-form)]
     (or
      (and
-      @new-ns-form
-      (str/replace @new-source-sans-ns ns-form-placeholder @new-ns-form))
+      new-ns-form
+      (str/replace @new-source-sans-ns ns-form-placeholder new-ns-form))
      @new-source-sans-ns)))
 
 (defn move-ns-file
@@ -230,4 +256,5 @@
   [old-sym new-sym source-path extension dirs]
   (move-ns-file old-sym new-sym extension source-path)
   (cp/pdoseq (+ 2 (cp/ncpus)) [file (clojure-source-files dirs extension)]
-    (update-file file replace-ns-symbol old-sym new-sym)))
+    (let [file-ext (util/file->extension (str file))]
+      (update-file file replace-ns-symbol old-sym new-sym extension file-ext))))

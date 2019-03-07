@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [leiningen.core.main :as lein-main]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.set :as s])
   (:import [java.io File]
            [com.tonicsystems.jarjar Rule]
            [mranderson.util JjPackageRemapper JjMainProcessor]
@@ -133,3 +134,16 @@
 (defn file->extension
   [file]
   (re-find #"\.clj[cs]?$" file))
+
+(defn extension->platform
+  [extension-of-moved]
+  (some->> (#{".cljs" ".clj"} extension-of-moved)
+           rest
+           (apply str)
+           keyword))
+
+(defn platform-comp [platform]
+  (when platform
+    (->>  #{platform}
+          (s/difference #{:cljs :clj})
+          first)))
