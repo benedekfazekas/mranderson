@@ -320,74 +320,87 @@
   ([deps]
    (create-dep-graph (dep/graph) deps 0)))
 
+(defn- lein-project->ctx
+  [{:keys [root target-path name version]} args]
+  (let [opts                        (map #(edn/read-string %) args)
+        project-prefix              (lookup-opt :project-prefix opts)
+        pprefix                     (or (and project-prefix (clojure.core/name project-prefix)) (u/clean-name-version "mranderson" (u/mranderson-version)))
+        skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
+        prefix-exclusions           (lookup-opt :prefix-exclusions opts)
+        srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
+        project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))
+        unresolved-deps-hierarchy    (lookup-opt :unresolved-dependency-hierarchy opts)]
+    (u/debug "skip repackage" skip-repackage-java-classes)
+    (u/info "project prefix: " pprefix)
+    {:pname                       name
+     :pversion                    version
+     :pprefix                     pprefix
+     :skip-repackage-java-classes skip-repackage-java-classes
+     :srcdeps                     srcdeps-relative
+     :prefix-exclusions           prefix-exclusions
+     :project-source-dirs         project-source-dirs
+     :unresolved-deps-hierarchy   unresolved-deps-hierarchy}))
+
+(defn- initial-paths [target-path pprefix]
+  {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
+   :parent-clj-dirs []})
+
+(defn- mranderson-unresolved-deps!
+  "Unzips and tranforms files in dependencies in a unresolved dependency tree."
+  [unresolved-deps-tree paths ctx]
+  (u/info "working on an unresolved dependency hierarchy")
+  (#'ldeps/walk-deps unresolved-deps-tree #'ldeps/print-dep)
+  (walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx))
+
+(defn- mranderson-resolved-deps!
+  "Unzips and tranforms files in dependencies in a resolved dependency tree.
+
+  Creates a topological order based on the expanded tree flatten out the resolved tree in a list like data structure
+  ordered by the expanded tree based topological order process this ordered list with `walk-ordered-deps` that first
+  unzips all deps and collects their contextual info and then performs the source transformation in
+  reverse topological order"
+  [resolved-deps unresolved-deps paths ctx]
+  (let [unresolved-deps-topo-order (zipmap (dep/topo-sort (create-dep-graph unresolved-deps)) (range))
+        topo-comparator            (fn [[l] [r]]
+                                     (compare (get unresolved-deps-topo-order l Long/MAX_VALUE)
+                                              (get unresolved-deps-topo-order r Long/MAX_VALUE)))
+        ordered-resolved-deps      (->> (tree-seq map? (fn [m] (concat (keys m) (vals m))) resolved-deps)
+                                        (filter vector?)
+                                        (reduce (fn [m dep] (assoc m dep nil)) {})
+                                        (into (sorted-map-by topo-comparator)))]
+    (u/info "working on a resolved dep hierarchy")
+    (#'ldeps/walk-deps resolved-deps #'ldeps/print-dep)
+    (walk-ordered-deps
+     ordered-resolved-deps
+     unzip-artifact!
+     update-artifact!
+     paths
+     ctx)))
+
+(defn- copy-source-files
+  [source-paths target-path]
+  (fs/copy-dir (first source-paths) (str target-path "/srcdeps")))
+
+(defn- mranderson [repositories dependencies {:keys [skip-repackage-java-classes unresolved-deps-hierarchy pname pversion] :as ctx} paths]
+  (let [source-dependencies         (filter u/source-dep? dependencies)
+        resoved-deps-tree           (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
+                                         (aether/dependency-hierarchy source-dependencies))
+        unresolved-deps-tree        (expand-dep-hierarchy repositories resoved-deps-tree)]
+        (u/info "retrieve dependencies and munge clojure source files")
+    (if unresolved-deps-hierarchy
+      (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
+      (mranderson-resolved-deps! unresolved-deps-tree resoved-deps-tree paths ctx))
+    (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
+      (class-deps-jar!)
+      (u/apply-jarjar! pname pversion)
+      (replace-class-deps!))))
+
 (defn source-deps
   "Dependencies as source: used as if part of the project itself.
 
    Somewhat node.js & npm style dependency handling."
-  [{:keys [repositories dependencies source-paths root target-path name version] :as project} & args]
-  (fs/copy-dir (first source-paths) (str target-path "/srcdeps"))
-  (let [project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))
-        source-dependencies         (filter u/source-dep? dependencies)
-        opts                        (map #(edn/read-string %) args)
-        project-prefix              (lookup-opt :project-prefix opts)
-        pprefix                     (or (and project-prefix (clojure.core/name project-prefix)) (u/clean-name-version "mranderson" (u/mranderson-version)))
-        srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
-        prefix-exclusions           (lookup-opt :prefix-exclusions opts)
-        skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
-        unresolved-deps-hierarcy    (lookup-opt :unresolved-dependency-hierarchy opts)
-        dep-hierarchy               (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
-                                         (aether/dependency-hierarchy source-dependencies))
-        expanded-tree               (expand-dep-hierarchy repositories dep-hierarchy)
-        srcdeps                     (fs/file target-path "srcdeps" (u/sym->file-name pprefix))]
-    (u/debug "skip repackage" skip-repackage-java-classes)
-    (u/info "project prefix: " pprefix)
-    (u/info "retrieve dependencies and munge clojure source files")
-    (if unresolved-deps-hierarcy
-      (do
-        (u/info "working on an unresolved dependency hierarchy")
-        (#'ldeps/walk-deps expanded-tree #'ldeps/print-dep)
-        (walk-dep-tree
-         expanded-tree
-         unzip-artifact!
-         update-artifact!
-         {:src-path        srcdeps
-          :parent-clj-dirs []}
-         {:pname                       name
-          :pversion                    version
-          :pprefix                     pprefix
-          :skip-repackage-java-classes skip-repackage-java-classes
-          :srcdeps                     srcdeps-relative
-          :prefix-exclusions           prefix-exclusions
-          :project-source-dirs         project-source-dirs}))
-      ;; create a topological order baed on the expanded tree
-      ;; flatten out the resolved tree in a list like data structure ordered by the expanded tree based
-      ;;  topological order
-      ;; process this ordered list with `walk-ordered-deps` that first unzips all deps and collects
-      ;;  their contextual info and then performs the source transformation in reverse topological order
-      (let [expanded-topo-order      (zipmap (dep/topo-sort (create-dep-graph expanded-tree)) (range))
-            expanded-topo-comparator (fn [[l] [r]]
-                                       (compare (get expanded-topo-order l Long/MAX_VALUE)
-                                                (get expanded-topo-order r Long/MAX_VALUE)))
-            ordered-resolved-deps    (->> (tree-seq map? (fn [m] (concat (keys m) (vals m))) dep-hierarchy)
-                                          (filter vector?)
-                                          (reduce (fn [m dep] (assoc m dep nil)) {})
-                                          (into (sorted-map-by expanded-topo-comparator)))]
-        (u/info "working on a resolved dep hierarchy")
-        (#'ldeps/walk-deps dep-hierarchy #'ldeps/print-dep)
-        (walk-ordered-deps
-         ordered-resolved-deps
-         unzip-artifact!
-         update-artifact!
-         {:src-path        srcdeps
-          :parent-clj-dirs []}
-         {:pname                       name
-          :pversion                    version
-          :pprefix                     pprefix
-          :skip-repackage-java-classes skip-repackage-java-classes
-          :srcdeps                     srcdeps-relative
-          :prefix-exclusions           prefix-exclusions
-          :project-source-dirs         project-source-dirs})))
-    (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
-      (class-deps-jar!)
-      (u/apply-jarjar! name version)
-      (replace-class-deps!))))
+  [{:keys [repositories dependencies source-paths target-path] :as project} & args]
+  (copy-source-files source-paths target-path)
+  (let [{:keys [pprefix] :as ctx} (lein-project->ctx project args)
+        paths                     (initial-paths target-path pprefix)]
+    (mranderson repositories dependencies ctx paths)))
