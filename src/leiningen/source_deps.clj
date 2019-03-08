@@ -383,13 +383,13 @@
 
 (defn- mranderson [repositories dependencies {:keys [skip-repackage-java-classes unresolved-deps-hierarchy pname pversion] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
-        resoved-deps-tree           (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
+        resolved-deps-tree          (->> (aether/resolve-dependencies :coordinates source-dependencies :repositories repositories)
                                          (aether/dependency-hierarchy source-dependencies))
-        unresolved-deps-tree        (expand-dep-hierarchy repositories resoved-deps-tree)]
+        unresolved-deps-tree        (expand-dep-hierarchy repositories resolved-deps-tree)]
         (u/info "retrieve dependencies and munge clojure source files")
     (if unresolved-deps-hierarchy
       (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
-      (mranderson-resolved-deps! unresolved-deps-tree resoved-deps-tree paths ctx))
+      (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
       (class-deps-jar!)
       (u/apply-jarjar! pname pversion)
