@@ -10,7 +10,39 @@
        (when subdeps
          (walk-deps subdeps f (inc level)))))
   ([deps f]
-     (walk-deps deps f 0)))
+   (walk-deps deps f 0)))
+
+(defn- path-pred [path dep override-k]
+  (= override-k (conj path (first dep))))
+
+(defn walk&expand-deps
+  "Walks a dep hierarchy and expands it with all dependencies as walking.
+
+  This essentially means that it creates an unresolved dependency where all nodes hold their originally
+  defined dependencies as children recursively.
+
+  Understands overrides in terms of versions so a node can be overridden at any point of the tree while it is being built.
+  This means that if the old version of the same dependency has different dependencies in its turn than the new version
+  being enforced by overriding the dependencies of the new version will be present in the subtree.
+
+  Overrides is a map where keys are paths as vectors to a dependency in an unresolved tree and values are dependencies
+  as a vector. for example
+  ```
+  {[mvxcvi/puget fipp] [fipp 0.6.14]}
+  ```
+  "
+  ([deps resolve-dep-fn overrides path]
+   (->> (map
+         (fn [[dep _]]
+           (let [[override-k override-v] (first (filter (comp (partial path-pred path dep) key) overrides))
+                 [dep subdeps] (first (resolve-dep-fn [(or override-v dep)]))]
+             [dep
+              (when (seq subdeps)
+                (walk&expand-deps subdeps resolve-dep-fn overrides (conj path (first dep))))]))
+         deps)
+        (into {})))
+  ([deps f overrides]
+     (walk&expand-deps deps f overrides [])))
 
 (defn walk-dep-tree
   "Walks a dependency tree in depth first order.

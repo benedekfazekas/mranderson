@@ -93,6 +93,9 @@
 (defn source-dep? [dependency]
   (:source-dep (meta dependency)))
 
+(defn overrides? [dependency]
+  (:overrides (meta dependency)))
+
 (defn- create-rule [name-version java-dir]
   (let [rule (Rule.)]
     (. rule setPattern (str java-dir ".**"))
@@ -147,3 +150,7 @@
     (->>  #{platform}
           (s/difference #{:cljs :clj})
           first)))
+
+(defn all-overrides [source-deps]
+  (->> (map (comp :overrides meta) source-deps)
+       (apply merge)))

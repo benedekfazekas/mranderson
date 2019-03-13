@@ -11,7 +11,8 @@
   [{:keys [root target-path name version]} args]
   (let [opts                        (map #(edn/read-string %) args)
         project-prefix              (lookup-opt :project-prefix opts)
-        pprefix                     (or (and project-prefix (clojure.core/name project-prefix)) (u/clean-name-version "mranderson" (u/mranderson-version)))
+        pprefix                     (or (and project-prefix (clojure.core/name project-prefix))
+                                        (u/clean-name-version "mranderson" (u/mranderson-version)))
         skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
         prefix-exclusions           (lookup-opt :prefix-exclusions opts)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
