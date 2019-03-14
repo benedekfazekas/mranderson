@@ -12,8 +12,8 @@
   ([deps f]
    (walk-deps deps f 0)))
 
-(defn- path-pred [path dep override-k]
-  (= override-k (conj path (first dep))))
+(defn path-pred [path dep k]
+  (= k (conj path (first dep))))
 
 (defn walk&expand-deps
   "Walks a dep hierarchy and expands it with all dependencies as walking.

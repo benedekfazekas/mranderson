@@ -154,3 +154,7 @@
 (defn all-overrides [source-deps]
   (->> (map (comp :overrides meta) source-deps)
        (apply merge)))
+
+(defn all-expositions [source-deps]
+  (->> (mapcat (comp :expoisitons meta) source-deps)
+       vec))

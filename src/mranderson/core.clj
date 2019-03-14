@@ -198,12 +198,14 @@
       (u/info "    prefixing imports: done"))))
 
 (defn- update-artifact!
-  [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs]}
-   {:keys [art-name-cleaned art-version clj-files clj-dirs]}
-   {:keys [src-path parent-clj-dirs]}]
+  [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs expositions]}
+   {:keys [art-name-cleaned art-version clj-files clj-dirs dep]}
+   {:keys [src-path parent-clj-dirs branch]}]
   (let [repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
         prefixes         (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
-        all-dirs         (->> [(if (str/ends-with? src-path (u/sym->file-name pprefix))
+        expose?          (first (filter (partial t/path-pred branch dep) expositions))
+        all-dirs         (->> [(if (or (str/ends-with? src-path (u/sym->file-name pprefix))
+                                       expose?)
                                  project-source-dirs
                                  [])]
                               (apply
@@ -212,7 +214,7 @@
                                (map fs/file clj-dirs)
                                parent-clj-dirs)
                               vec)]
-    (u/info (format "  munge source files of %s artifact."  art-name-cleaned))
+    (u/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
     (u/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
     (u/debug "   modified namespace prefix: " repl-prefix)
     (u/debug "    src path: " src-path)
@@ -240,7 +242,7 @@
             ;; remove old file
             (fs/delete old-path)))))))
 
-(defn- unzip-artifact! [{:keys [srcdeps]} {:keys [src-path]} dep]
+(defn- unzip-artifact! [{:keys [srcdeps]} {:keys [src-path branch]} dep]
   (let [art-name         (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version      (str "v" (-> dep second (str/replace "." "v")))
@@ -254,8 +256,10 @@
     [{:art-name-cleaned art-name-cleaned
       :art-version      art-version
       :clj-files        clj-files
-      :clj-dirs         clj-dirs}
+      :clj-dirs         clj-dirs
+      :dep              dep}
      {:src-path        (fs/file src-path (str/replace (str/join "/" [art-name-cleaned art-version]) "-" "_"))
+      :branch          (conj branch (first dep))
       :parent-clj-dirs (map fs/file clj-dirs)}]))
 
 (defn copy-source-files
@@ -298,10 +302,11 @@
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
         overrides                   (or (and unresolved-deps-hierarchy (u/all-overrides source-dependencies)) {})
+        expositions                 (or (and unresolved-deps-hierarchy (u/all-expositions source-dependencies)) [])
         unresolved-deps-tree        (dr/expand-dep-hierarchy repositories resolved-deps-tree overrides)]
-        (u/info "retrieve dependencies and munge clojure source files")
+    (u/info "retrieve dependencies and munge clojure source files")
     (if unresolved-deps-hierarchy
-      (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
+      (mranderson-unresolved-deps! unresolved-deps-tree paths (assoc ctx :expositions expositions))
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
       (class-deps-jar!)

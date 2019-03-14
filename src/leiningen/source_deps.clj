@@ -31,7 +31,8 @@
 
 (defn- initial-paths [target-path pprefix]
   {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
-   :parent-clj-dirs []})
+   :parent-clj-dirs []
+   :branch          []})
 
 (defn source-deps
   "Dependencies as source: used as if part of the project itself.
