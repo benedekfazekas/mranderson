@@ -298,15 +298,15 @@
      paths
      ctx)))
 
-(defn mranderson [repositories dependencies {:keys [skip-repackage-java-classes unresolved-deps-hierarchy pname pversion] :as ctx} paths]
+(defn mranderson
+  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-deps-hierarchy pname pversion overrides] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
-        overrides                   (or (and unresolved-deps-hierarchy (u/all-overrides source-dependencies)) {})
-        expositions                 (or (and unresolved-deps-hierarchy (u/all-expositions source-dependencies)) [])
+        overrides                   (or (and unresolved-deps-hierarchy overrides) {})
         unresolved-deps-tree        (dr/expand-dep-hierarchy repositories resolved-deps-tree overrides)]
     (u/info "retrieve dependencies and munge clojure source files")
     (if unresolved-deps-hierarchy
-      (mranderson-unresolved-deps! unresolved-deps-tree paths (assoc ctx :expositions expositions))
+      (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
       (class-deps-jar!)

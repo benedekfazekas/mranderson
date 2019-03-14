@@ -2,7 +2,6 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [leiningen.core.main :as lein-main]
-            [clojure.java.io :as io]
             [clojure.set :as s])
   (:import [java.io File]
            [com.tonicsystems.jarjar Rule]
@@ -93,9 +92,6 @@
 (defn source-dep? [dependency]
   (:source-dep (meta dependency)))
 
-(defn overrides? [dependency]
-  (:overrides (meta dependency)))
-
 (defn- create-rule [name-version java-dir]
   (let [rule (Rule.)]
     (. rule setPattern (str java-dir ".**"))
@@ -150,11 +146,3 @@
     (->>  #{platform}
           (s/difference #{:cljs :clj})
           first)))
-
-(defn all-overrides [source-deps]
-  (->> (map (comp :overrides meta) source-deps)
-       (apply merge)))
-
-(defn all-expositions [source-deps]
-  (->> (mapcat (comp :expoisitons meta) source-deps)
-       vec))
