@@ -131,7 +131,7 @@
   (when-not (#{:uneval} (b/tag node))
     (= 'ns (b/sexpr (z/down node)))))
 
-(def ^:const ns-form-placeholder "ns_form_placeholder")
+(def ^:const ns-form-placeholder (str "ns_" "form_" "placeholder"))
 
 (defn- split-ns-form-ns-body
   "Returns ns form as a rewrite-clj loc and the ns body as string with a place holder for the ns form."
@@ -154,10 +154,12 @@
       (z/root-string loc))))
 
 (defn- source-replacement [old-sym new-sym match]
-  (let [old-ns-ref     (name old-sym)
-        new-ns-ref     (name new-sym)
-        old-pkg-prefix (java-package old-sym)
-        new-pkg-prefix (java-package new-sym)]
+  (let [old-ns-ref      (name old-sym)
+        new-ns-ref      (name new-sym)
+        old-pkg-prefix  (java-package old-sym)
+        new-pkg-prefix  (java-package new-sym)
+        old-type-prefix (str "^" (java-package old-sym))
+        new-type-prefix (str "^" (java-package new-sym))]
     (cond
 
       (= match old-ns-ref)
@@ -167,6 +169,9 @@
            (str/includes? match "_"))
       (str/replace match old-pkg-prefix new-pkg-prefix)
 
+      (str/starts-with? match old-type-prefix)
+      (str/replace match old-type-prefix new-type-prefix)
+
       :default
       match)))
 
@@ -174,7 +179,7 @@
   ;; LispReader.java uses #"[:]?([\D&&[^/]].*/)?([\D&&[^/]][^/]*)" but
   ;; that's too broad; we don't want a whole namespace-qualified symbol,
   ;; just each part individually.
-  #"\"?[a-zA-Z0-9$%*+=?!<>_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
+  #"\"?[a-zA-Z0-9$%*+=?!<>^_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
 
 (defn- replace-in-source [source-sans-ns old-sym new-sym]
   (str/replace source-sans-ns symbol-regex (partial source-replacement old-sym new-sym)))

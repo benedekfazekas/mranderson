@@ -10,7 +10,9 @@
 (ns example.a.four)
 
 (defn foo []
-  (println \"nuf said\"))")
+  (println \"nuf said\"))
+
+(deftype FourType [field])")
 
 (def ex-5
   "(ns example.five
@@ -36,7 +38,8 @@
             [example.a.four :as four]
             [example.a
              [foo]
-             [bar]]))
+             [bar]])
+  (:import [example.a.four FourType]))
 
 (defn foo []
   (example.a.four/foo))
@@ -44,7 +47,12 @@
 (def delayed-four
   (do
     (require 'example.a.four)
-    (resolve 'example.a.four/foo)))")
+    (resolve 'example.a.four/foo)))
+
+(defn my-four-type
+  ^example.a.four.FourType
+  [^example.a.four.FourType t]
+  t)")
 
 (def ex-1
   "(ns example.one
@@ -122,7 +130,7 @@
       (t/testing "move ns simple case, no dash, no deftype, defrecord"
         (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir])
 
-        ;; (println "affected after move")
+        ;(println "affected after move")
         ;; (doseq [a [file-one file-two new-file-four]]
         ;;   (println (.getAbsolutePath a))
         ;;   (prn (slurp a)))
@@ -147,7 +155,7 @@
         (t/is (every? #(.contains (slurp %) "example.b.four")
                       [file-one file-two new-file-four])
               "affected files should refer to new ns")
-        (t/is (= 4 (count (re-seq #"example.b.four" (slurp file-two))))
+        (t/is (= 7 (count (re-seq #"example.b.four" (slurp file-two))))
               "all occurances of old ns should be replace with new")
         (t/is (re-find #"\(:example.b.four/" (slurp file-one))
               "type of occurence is retained if keyword")
