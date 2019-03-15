@@ -12,6 +12,6 @@
                  ^:source-dep [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ^:source-dep [me.raynes/fs "1.4.6"]
                  ^:source-dep [rewrite-clj "0.6.1"]
-                 ^:source-dep [com.climate/claypoole "1.1.4"]
+                 ^:source-dep [parallel "0.9"]
                  [com.googlecode.jarjar/jarjar "1.3"]]
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]]}})

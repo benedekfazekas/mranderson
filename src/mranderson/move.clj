@@ -23,7 +23,7 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [mranderson.util :as util]
-            [com.climate.claypoole :as cp]
+            [parallel.core :as p]
             [rewrite-clj.zip :as z]
             [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
@@ -260,6 +260,8 @@
   sure you have a backup or version control."
   [old-sym new-sym source-path extension dirs]
   (move-ns-file old-sym new-sym extension source-path)
-  (cp/pdoseq (+ 2 (cp/ncpus)) [file (clojure-source-files dirs extension)]
-    (let [file-ext (util/file->extension (str file))]
-      (update-file file replace-ns-symbol old-sym new-sym extension file-ext))))
+  (p/pmap
+   (fn [file] (->> (str file)
+                   util/file->extension
+                   (update-file file replace-ns-symbol old-sym new-sym extension)))
+   (clojure-source-files dirs extension)))
