@@ -267,19 +267,19 @@
   (fs/copy-dir (first source-paths) (str target-path "/srcdeps")))
 
 (defn- mranderson-unresolved-deps!
-  "Unzips and tranforms files in dependencies in a unresolved dependency tree."
+  "Unzips and transforms files in an unresolved dependency tree."
   [unresolved-deps-tree paths ctx]
   (u/info "working on an unresolved dependency hierarchy")
   (t/walk-deps unresolved-deps-tree print-dep)
   (t/walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx))
 
 (defn- mranderson-resolved-deps!
-  "Unzips and tranforms files in dependencies in a resolved dependency tree.
+  "Unzips and transforms files in a resolved dependency tree.
 
-  Creates a topological order based on the expanded tree flatten out the resolved tree in a list like data structure
-  ordered by the expanded tree based topological order process this ordered list with `walk-ordered-deps` that first
+  Creates a topological order based on the expanded tree. Flattens out the resolved tree into a list like data structure
+  ordered by the expanded tree based topological order. Processes this ordered list with `walk-ordered-deps` that first
   unzips all deps and collects their contextual info and then performs the source transformation in
-  reverse topological order"
+  reverse topological order."
   [resolved-deps unresolved-deps paths ctx]
   (let [unresolved-deps-topo-order (t/topological-order unresolved-deps)
         topo-comparator            (fn [[l] [r]]
@@ -299,15 +299,15 @@
      ctx)))
 
 (defn mranderson
-  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-deps-hierarchy pname pversion overrides] :as ctx} paths]
+  [repositories dependencies {:keys [skip-repackage-java-classes shadowing-only pname pversion overrides] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
-        overrides                   (or (and unresolved-deps-hierarchy overrides) {})
+        overrides                   (or (and shadowing-only {}) overrides)
         unresolved-deps-tree        (dr/expand-dep-hierarchy repositories resolved-deps-tree overrides)]
     (u/info "retrieve dependencies and munge clojure source files")
-    (if unresolved-deps-hierarchy
-      (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
-      (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
+    (if shadowing-only
+      (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx)
+      (mranderson-unresolved-deps! unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
       (class-deps-jar!)
       (u/apply-jarjar! pname pversion)

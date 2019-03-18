@@ -17,7 +17,8 @@
         prefix-exclusions           (lookup-opt :prefix-exclusions opts)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))
-        unresolved-deps-hierarchy   (lookup-opt :unresolved-dependency-hierarchy opts)]
+        shadowing-only-opt          (lookup-opt :shadowing-only opts)
+        shadowing-only              (or shadowing-only-opt (and (nil? shadowing-only-opt) (:shadowing-only mranderson)))]
     (u/debug "skip repackage" skip-repackage-java-classes)
     (u/debug "project mranderson" (prn-str mranderson))
     (u/info "project prefix: " pprefix)
@@ -28,7 +29,7 @@
      :srcdeps                     srcdeps-relative
      :prefix-exclusions           prefix-exclusions
      :project-source-dirs         project-source-dirs
-     :unresolved-deps-hierarchy   unresolved-deps-hierarchy
+     :shadowing-only              shadowing-only
      :overrides                   (:overrides mranderson)
      :expositions                 (:expositions mranderson)}))
 
