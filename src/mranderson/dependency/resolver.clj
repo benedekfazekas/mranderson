@@ -1,6 +1,6 @@
-(ns mranderson.dependency-resolver
+(ns mranderson.dependency.resolver
   (:require [cemerick.pomegranate.aether :as aether]
-            [mranderson.tree :as t]))
+            [mranderson.dependency.tree :as t]))
 
 (defn resolve-source-deps
   "Retrieves the given dependencies using the given `repositories`"

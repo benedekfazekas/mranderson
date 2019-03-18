@@ -1,4 +1,4 @@
-(ns mranderson.tree
+(ns mranderson.dependency.tree
   (:require [clojure.tools.namespace.dependency :as dep]
             [mranderson.util :as u]))
 

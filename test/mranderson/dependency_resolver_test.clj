@@ -1,7 +1,7 @@
 (ns mranderson.dependency-resolver-test
-  (:require [mranderson.dependency-resolver :as sut]
-            [mranderson.tree :as tree]
-            [clojure.test :as t]))
+  (:require [clojure.test :as t]
+            [mranderson.dependency.resolver :as sut]
+            [mranderson.dependency.tree :as tree]))
 
 (def repos
   [["central" {:url       "https://repo1.maven.org/maven2/"

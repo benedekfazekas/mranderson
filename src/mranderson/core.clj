@@ -3,9 +3,9 @@
             [clojure.string :as str]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
             [me.raynes.fs :as fs]
-            [mranderson.dependency-resolver :as dr]
+            [mranderson.dependency.resolver :as dr]
+            [mranderson.dependency.tree :as t]
             [mranderson.move :as move]
-            [mranderson.tree :as t]
             [mranderson.util :as u])
   (:import java.util.UUID
            [java.util.zip ZipEntry ZipFile ZipOutputStream]))
