@@ -15,6 +15,9 @@
   '{[mvxcvi/puget "1.0.2" :exclusions [[org.clojure/clojure]]] nil
     [fipp "0.6.10"] nil})
 
+(def example-dep-transient-cljs
+  '[[cljfmt "0.6.3"]])
+
 (defn assert-file-meta [dep level]
   (t/is (-> dep meta :file) (format "%s does not have file meta info" dep)))
 
@@ -60,3 +63,12 @@
            (sut/expand-dep-hierarchy repos example-dep-multiple '{[mvxcvi/puget fipp org.clojure/core.rrb-vector]
                                                                   [org.clojure/core.rrb-vector "0.0.13"]}))
         "failed to expand multiple deps with override and override a two level deep transient dependency"))
+
+(t/deftest cljs-and-its-dependencies-evicted
+  (t/is (= '{[cljfmt "0.6.3"]
+             {[com.googlecode.java-diff-utils/diffutils "1.3.0"] nil
+              [org.clojure/tools.cli "0.3.7"] nil
+              [org.clojure/tools.reader "1.2.2"] nil
+              [rewrite-cljs "0.4.4"] nil
+              [rewrite-clj "0.6.0"] nil}}
+           (tree/evict-subtrees (sut/resolve-source-deps repos example-dep-transient-cljs) '#{org.clojure/clojure org.clojure/clojurescript}))))

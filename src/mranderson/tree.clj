@@ -16,9 +16,9 @@
   (= k (conj path (first dep))))
 
 (defn walk&expand-deps
-  "Walks a dep hierarchy and expands it with all dependencies as walking.
+  "Walks a dependency tree and expands it with all dependencies as walking.
 
-  This essentially means that it creates an unresolved dependency where all nodes hold their originally
+  This essentially means that an unresolved dependency tree is created where all nodes hold their originally
   defined dependencies as children recursively.
 
   Understands overrides in terms of versions so a node can be overridden at any point of the tree while it is being built.
@@ -41,8 +41,22 @@
                 (walk&expand-deps subdeps resolve-dep-fn overrides (conj path (first dep))))]))
          deps)
         (into {})))
-  ([deps f overrides]
-     (walk&expand-deps deps f overrides [])))
+  ([deps resolve-dep-fn overrides]
+     (walk&expand-deps deps resolve-dep-fn overrides [])))
+
+(defn evict-subtrees
+  "Evict subtrees from a dependency tree.
+
+  `subtree-roots` are defined as a set of dependency names (for example `#{'org.clojure/clojure 'org.clojure/clojurescript}`
+  without their versions. Tested on a resolved tree. Assumed that it would evict all subtrees from an unresolved depedency
+  tree."
+  [deps subtree-roots]
+  (->> (map
+        (fn [[dep subdeps]]
+          (let [subdeps (remove (comp subtree-roots ffirst) subdeps)]
+            [dep (when (seq subdeps) (evict-subtrees subdeps subtree-roots))]))
+        deps)
+       (into {})))
 
 (defn walk-dep-tree
   "Walks a dependency tree in depth first order.
@@ -52,11 +66,10 @@
   paths returned by `pre-fn` for the same node."
   [deps pre-fn post-fn paths ctx]
   (doseq [[dep subdeps] deps]
-    (when-not (#{'org.clojure/clojure 'org.clojure/clojurescript} (first dep))
-      (let [[pre-result new-paths] (pre-fn ctx paths dep)]
-        (when subdeps
-          (walk-dep-tree subdeps pre-fn post-fn new-paths ctx))
-        (post-fn ctx pre-result paths)))))
+    (let [[pre-result new-paths] (pre-fn ctx paths dep)]
+      (when subdeps
+        (walk-dep-tree subdeps pre-fn post-fn new-paths ctx))
+      (post-fn ctx pre-result paths))))
 
 (defn walk-ordered-deps
   "Walks a flat list of dependencies.
@@ -64,11 +77,11 @@
   Applies `pre-fn` on all the dependencies and collects the `pre-fn` returned contextual values and paths.
   Runs `post-fn` on all the dependencies in a reverse order using the `pre-fn` results and paths."
   [deps pre-fn post-fn paths ctx]
-  (let [deps (remove #(#{'org.clojure/clojure 'org.clojure/clojurescript} (first %)) (keys deps))]
-    (->> (map (partial pre-fn ctx paths) deps)
-         ((juxt (partial reduce (fn [clj-dirs [_ {:keys [parent-clj-dirs]}]] (into clj-dirs parent-clj-dirs)) []) reverse))
-         ((fn [[clj-dirs deps]]
-            (dorun (map (fn [[pre-result _]] (post-fn ctx pre-result (update paths :parent-clj-dirs concat clj-dirs))) deps)))))))
+  (->> (keys deps)
+       (map (partial pre-fn ctx paths))
+       ((juxt (partial reduce (fn [clj-dirs [_ {:keys [parent-clj-dirs]}]] (into clj-dirs parent-clj-dirs)) []) reverse))
+       ((fn [[clj-dirs deps]]
+          (dorun (map (fn [[pre-result _]] (post-fn ctx pre-result (update paths :parent-clj-dirs concat clj-dirs))) deps))))))
 
 (defn- create-dep-graph
   ([graph deps level]

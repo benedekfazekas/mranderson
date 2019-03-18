@@ -269,9 +269,10 @@
 (defn- mranderson-unresolved-deps!
   "Unzips and transforms files in an unresolved dependency tree."
   [unresolved-deps-tree paths ctx]
-  (u/info "working on an unresolved dependency hierarchy")
-  (t/walk-deps unresolved-deps-tree print-dep)
-  (t/walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx))
+  (let [unresolved-deps-tree (t/evict-subtrees unresolved-deps-tree '#{org.clojure/clojure org.clojure/clojurescript})]
+    (u/info "working on an unresolved dependency hierarchy")
+    (t/walk-deps unresolved-deps-tree print-dep)
+    (t/walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx)))
 
 (defn- mranderson-resolved-deps!
   "Unzips and transforms files in a resolved dependency tree.
@@ -285,6 +286,7 @@
         topo-comparator            (fn [[l] [r]]
                                      (compare (get unresolved-deps-topo-order l Long/MAX_VALUE)
                                               (get unresolved-deps-topo-order r Long/MAX_VALUE)))
+        resolved-deps              (t/evict-subtrees resolved-deps '#{org.clojure/clojure org.clojure/clojurescript})
         ordered-resolved-deps      (->> (tree-seq map? (fn [m] (concat (keys m) (vals m))) resolved-deps)
                                         (filter vector?)
                                         (reduce (fn [m dep] (assoc m dep nil)) {})
