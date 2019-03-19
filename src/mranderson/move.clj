@@ -193,7 +193,7 @@
          found-nodes []]
     (if-let [found-node (z/find-next-depth-first loc (partial after-platfrom-marker? platform))]
       (recur (z/replace found-node (symbol (str (name platform) "_require"))) (conj found-nodes found-node))
-      [found-nodes (z/of-string (z/root-string loc))])))
+      [found-nodes (z/edn (z/root loc))])))
 
 (defn- restore-platform-specific-subforms [platform replaced-nodes ns-form]
   (loop [form             ns-form
