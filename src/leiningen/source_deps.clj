@@ -31,7 +31,8 @@
      :project-source-dirs         project-source-dirs
      :shadowing-only              shadowing-only
      :overrides                   (:overrides mranderson)
-     :expositions                 (:expositions mranderson)}))
+     :expositions                 (:expositions mranderson)
+     :watermark                   (:watermark mranderson :mranderson/inlined)}))
 
 (defn- initial-paths [target-path pprefix]
   {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))

@@ -7,7 +7,7 @@
 ;; remove this notice, or any other, from this software.
 
 (ns ^{:author "Stuart Sierra"
-      :doc "Refactoring tool to move a Clojure namespace from one name/file to
+      :doc    "Refactoring tool to move a Clojure namespace from one name/file to
   another, and update all references to that namespace in your other
   Clojure source files.
 
@@ -19,7 +19,7 @@
   This is patched version of Stuart Siearra's original to handle cljc files
 
 "}
-  mranderson.move
+    mranderson.move
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [mranderson.util :as util]
@@ -146,8 +146,16 @@
           (recur (z/edn next-form))
           [nil content])))))
 
-(defn- replace-in-ns-form [ns-loc old-sym new-sym]
-  (loop [loc ns-loc]
+(defn- watermark-ns-maybe [ns-loc watermark]
+  (some-> (z/down ns-loc)
+          z/right
+          (z/edit (fn [ns-name] (with-meta ns-name (assoc (meta ns-name) watermark true))))
+          z/root
+          z/edn))
+
+(defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
+  (loop [loc (or (and watermark (watermark-ns-maybe ns-loc watermark))
+                 ns-loc)]
     (if-let [found-node (some-> (z/find-next-depth-first loc (partial contains-sym? old-sym))
                                 (z/edit (partial replace-in-node old-sym new-sym)))]
       (recur found-node)
@@ -210,14 +218,14 @@
   Splits the source file, parses the ns macro if found to do all the necessary
   transformations. Works on the body of namepsace as text as simpler transformations
   are needed. When done puts the ns form and body back together."
-  [content old-sym new-sym extension-of-moved file-ext]
+  [content old-sym new-sym watermark extension-of-moved file-ext]
   (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
         opp-platform       (util/platform-comp (util/extension->platform extension-of-moved))
         [replaced-nodes ns-loc] (or (and (= ".cljc" file-ext) opp-platform
                                          (find-and-replace-platform-specific-subforms opp-platform ns-loc))
                                     [[] ns-loc])
 
-        new-ns-form             (future (replace-in-ns-form ns-loc old-sym new-sym))
+        new-ns-form             (future (replace-in-ns-form ns-loc old-sym new-sym watermark))
         new-source-sans-ns      (future (replace-in-source source-sans-ns old-sym new-sym))
         new-ns-form             (if (seq replaced-nodes)
                                   (restore-platform-specific-subforms opp-platform replaced-nodes @new-ns-form)
@@ -247,6 +255,16 @@
           (recur (.getParentFile dir)))))
     (throw (FileNotFoundException. (format "file for %s not found in %s" old-sym source-path)))))
 
+(defn replace-ns-symbol-in-source-files
+  "Replaces all occurrences of the old name with the new name in
+  all Clojure source files found in dirs."
+  [old-sym new-sym source-path extension dirs watermark]
+  (p/pmap
+   (fn [file] (->> (str file)
+                   util/file->extension
+                   (update-file file replace-ns-symbol old-sym new-sym watermark extension)))
+   (clojure-source-files dirs extension)))
+
 (defn move-ns
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
   to source-path) for the namespace named old-sym to new-sym and
@@ -258,10 +276,6 @@
 
   WARNING: This function modifies and deletes your source files! Make
   sure you have a backup or version control."
-  [old-sym new-sym source-path extension dirs]
+  [old-sym new-sym source-path extension dirs watermark]
   (move-ns-file old-sym new-sym extension source-path)
-  (p/pmap
-   (fn [file] (->> (str file)
-                   util/file->extension
-                   (update-file file replace-ns-symbol old-sym new-sym extension)))
-   (clojure-source-files dirs extension)))
+  (replace-ns-symbol-in-source-files old-sym new-sym source-path extension dirs watermark))

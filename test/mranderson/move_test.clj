@@ -81,7 +81,7 @@
   [(:require [example.seven :as seven-cljs])]))")
 
 (def ex-cljc-expected
-  "(ns example.cross
+  "(ns ^{:inlined true} example.cross
   #?@(:clj
   [(:require [example.clj.seven :as seven-clj])]
   :cljs
@@ -128,9 +128,9 @@
 
       (Thread/sleep 1500) ;; ensure file timestamps are different
       (t/testing "move ns simple case, no dash, no deftype, defrecord"
-        (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir])
+        (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir] nil)
 
-        ;(println "affected after move")
+        ;; (println "affected after move")
         ;; (doseq [a [file-one file-two new-file-four]]
         ;;   (println (.getAbsolutePath a))
         ;;   (prn (slurp a)))
@@ -164,10 +164,10 @@
         (t/is (= ex-edn (slurp file-edn))
          "clj file wo/ ns macro is unchanged"))
       (t/testing "move ns with dash, deftype, defrecord, import"
-        (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir])
+        (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir] :inlined)
 
         ;; (println "affected after move")
-        ;; (doseq [a [file-three file-five new-file-six]]
+        ;; (doseq [a [file-three file-five new-file-six new-file-four]]
         ;;   (println (.getAbsolutePath a))
         ;;   (prn (slurp a)))
 
@@ -183,7 +183,7 @@
               "affected files should refer to new ns"))
 
       (t/testing "testing cljc file using :clj/cljs macros in require depending on same ns in clj and cljs"
-        (sut/move-ns 'example.seven 'example.clj.seven src-dir ".clj" [src-dir])
-        (sut/move-ns 'example.seven 'example.cljs.seven src-dir ".cljs" [src-dir])
+        (sut/move-ns 'example.seven 'example.clj.seven src-dir ".clj" [src-dir] nil)
+        (sut/move-ns 'example.seven 'example.cljs.seven src-dir ".cljs" [src-dir] nil)
 
         (t/is (= (slurp file-cljc) ex-cljc-expected))))))

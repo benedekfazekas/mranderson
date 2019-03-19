@@ -198,28 +198,22 @@
       (u/info "    prefixing imports: done"))))
 
 (defn- update-artifact!
-  [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs expositions]}
+  [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs expositions watermark]}
    {:keys [art-name-cleaned art-version clj-files clj-dirs dep]}
    {:keys [src-path parent-clj-dirs branch]}]
   (let [repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
         prefixes         (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
         expose?          (first (filter (partial t/path-pred branch dep) expositions))
-        all-dirs         (->> [(if (or (str/ends-with? src-path (u/sym->file-name pprefix))
-                                       expose?)
-                                 project-source-dirs
-                                 [])]
-                              (apply
-                               concat
+        all-deps-dirs    (vec (concat
                                [src-path]
                                (map fs/file clj-dirs)
-                               parent-clj-dirs)
-                              vec)]
+                               parent-clj-dirs))]
     (u/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
     (u/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
     (u/debug "   modified namespace prefix: " repl-prefix)
     (u/debug "    src path: " src-path)
     (u/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
-    (u/debug "    all dirs: " all-dirs)
+    (u/debug "    all dirs: " all-deps-dirs)
     (u/debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
     (when-not skip-repackage-java-classes
       (if (str/ends-with? (str src-path) (u/sym->file-name pprefix))
@@ -230,7 +224,9 @@
       (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [new-ns (replacement repl-prefix old-ns nil)]
           (u/debug "    new ns:" new-ns)
-          (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-dirs))
+          (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-deps-dirs watermark)
+          (when (or (str/ends-with? src-path (u/sym->file-name pprefix)) expose?)
+            (move/replace-ns-symbol-in-source-files old-ns new-ns srcdeps (u/file->extension (str clj-file)) project-source-dirs nil)))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
           (let [old-path (str "target/srcdeps/" clj-file)
