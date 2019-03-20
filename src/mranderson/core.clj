@@ -42,11 +42,6 @@
        butlast
        (str/join ".")))
 
-(defn- cljfile->dir [clj-file]
-  (->> (str/split clj-file #"/")
-       butlast
-       (str/join "/")))
-
 (defn- possible-prefixes [clj-files]
   (->> clj-files
        (map cljfile->prefix)
@@ -204,10 +199,14 @@
   (let [repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
         prefixes         (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
         expose?          (first (filter (partial t/path-pred branch dep) expositions))
-        all-deps-dirs    (vec (concat
+        all-deps-dirs    (->> (concat
                                [src-path]
                                (map fs/file clj-dirs)
-                               parent-clj-dirs))]
+                               parent-clj-dirs)
+                              vec
+                              (mapv str)
+                              u/remove-subdirs
+                              (mapv fs/file))]
     (u/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
     (u/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
     (u/debug "   modified namespace prefix: " repl-prefix)
@@ -243,10 +242,7 @@
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version      (str "v" (-> dep second (str/replace "." "v")))
         clj-files        (doall (unzip (-> dep meta :file) srcdeps))
-        clj-dirs         (->> (map cljfile->dir clj-files)
-                              (remove str/blank?)
-                              (map (fn [clj-dir] (str srcdeps "/" clj-dir)))
-                              set)]
+        clj-dirs         (u/clj-files->dirs srcdeps clj-files)]
     (u/info "unzipping [" art-name-cleaned " [" art-version "]]")
     (u/debug (format "resolving transitive dependencies for %s:" art-name))
     [{:art-name-cleaned art-name-cleaned

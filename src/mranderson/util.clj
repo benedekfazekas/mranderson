@@ -146,3 +146,23 @@
     (->>  #{platform}
           (s/difference #{:cljs :clj})
           first)))
+
+(defn- cljfile->dir [clj-file]
+  (->> (str/split clj-file #"/")
+       butlast
+       (str/join "/")))
+
+(defn remove-subdirs [dirs]
+  (->> (sort dirs)
+       (reduce (fn [ds dir]
+                 (let [last-dir (last ds)]
+                   (if (and last-dir (str/includes? dir last-dir))
+                     ds
+                     (conj ds dir)))) [])))
+
+(defn clj-files->dirs
+  [prefix clj-files]
+  (->> (map cljfile->dir clj-files)
+       (remove str/blank?)
+       (map (fn [clj-dir] (str prefix "/" clj-dir)))
+       set))

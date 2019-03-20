@@ -220,7 +220,7 @@
   are needed. When done puts the ns form and body back together."
   [content old-sym new-sym watermark extension-of-moved file-ext]
   (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
-        opp-platform       (util/platform-comp (util/extension->platform extension-of-moved))
+        opp-platform            (util/platform-comp (util/extension->platform extension-of-moved))
         [replaced-nodes ns-loc] (or (and (= ".cljc" file-ext) opp-platform
                                          (find-and-replace-platform-specific-subforms opp-platform ns-loc))
                                     [[] ns-loc])
@@ -260,9 +260,10 @@
   all Clojure source files found in dirs."
   [old-sym new-sym source-path extension dirs watermark]
   (p/pmap
-   (fn [file] (->> (str file)
-                   util/file->extension
-                   (update-file file replace-ns-symbol old-sym new-sym watermark extension)))
+   (fn [file]
+     (->> (str file)
+          util/file->extension
+          (update-file file replace-ns-symbol old-sym new-sym watermark extension)))
    (clojure-source-files dirs extension)))
 
 (defn move-ns
