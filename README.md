@@ -43,9 +43,11 @@ Release to clojars
 
 Alternatively the modified dependencies and project files can be copied back to the source tree and stored in version control. In this case you don't need the above mentioned built in leiningen profile.
 
+## Config and options
+
 ### Two modes: unresolved dependency tree and shadowing only
 
-MrAnderson has **two *modes**. It can either work on an unresolved dependency tree (the default) or only shadow a list of dependencies based on a resolved dependency tree.
+MrAnderson has **two modes**. It can either work on an unresolved dependency tree (the default) or only shadow a list of dependencies based on a resolved dependency tree.
 
 Working on an **unresolved dependency tree** means that the same library -- even the same version of the library -- can occur multiple times in the dependency tree. When processing the tree MrAnderson creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
 
@@ -153,9 +155,7 @@ The latter supersedes the former.
 
 In the **shadowing only** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
 
-### Config and options
-
-Further config options
+### Further config options
 
 | Option                   | Default                        | CLI or project.clj    | Description | Example |
 |--------------------------|--------------------------------|-----------------------|-------------|---------|
@@ -164,7 +164,7 @@ Further config options
 | prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein source-deps :prefix-exclusions "[\"classlojure\"]"`  |
 | watermark                | :mranderson/inlined            | project.clj           | When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
 
-### Prerequisites
+## Prerequisites
 
 Leiningen 2.8.3 or above. For MrAnderson to work, does not mean your project is restricted to a java or clojure version.
 
