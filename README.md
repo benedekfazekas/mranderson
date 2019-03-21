@@ -41,13 +41,89 @@ Release to clojars
 
     $ lein with-profile +plugin.mranderson/config deploy clojars
 
-Alternatively the modified dependencies and project files can be copied back to the source tree and stored in version control. This case you don't need the above mentioned built in leiningen profile.
+Alternatively the modified dependencies and project files can be copied back to the source tree and stored in version control. In this case you don't need the above mentioned built in leiningen profile.
 
-### Config and options
+### Two modes: unresolved dependency tree and shadowing only
 
-MrAnderson has two modes. It can either work on an unresolved dependency tree (the default) or only shadow a list of dependencies based on a resolved dependency tree.
+MrAnderson has **two *modes**. It can either work on an unresolved dependency tree (the default) or only shadow a list of dependencies based on a resolved dependency tree.
 
-Working on an unresolved dependency tree means that the same library -- even the same version of the library -- can occur multiple times in the dependency tree. When processing the tree MrAnderson creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure. Note that the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library does not work in this mode. Also note that in this mode MrAnderson applies transient dependency hygiene meaning that it does not search and replace occurrances of a transient depedency namespace in the project's own files. To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
+Working on an **unresolved dependency tree** means that the same library -- even the same version of the library -- can occur multiple times in the dependency tree. When processing the tree MrAnderson creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
+
+In the **shadowing only** mode MrAnderson flattens the resolved dependency tree out into a topoligically ordered list and prefixes all namespaces in the dependencies and the references to them. This also means that all dependencies even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree.
+
+Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s unresolved tree (as it is at the time of writing this README) for reference:
+
+```
+ [cljs-tooling "0.3.1" :exclusions [[org.clojure/clojure]]]
+ [compliment "0.3.8" :exclusions [[org.clojure/clojure]]]
+ [fipp "0.6.15" :exclusions [[org.clojure/clojure]]]
+   [org.clojure/core.rrb-vector "0.0.13"]
+ [org.clojure/tools.trace "0.7.10" :exclusions [[org.clojure/clojure]]]
+ [cider/orchard "0.4.0" :exclusions [[org.clojure/clojure]]]
+   [org.clojure/java.classpath "0.3.0" :exclusions [[org.clojure/clojure]]]
+   [org.clojure/tools.namespace "0.3.0-alpha4" :exclusions [[org.clojure/clojure]]]
+     [org.clojure/java.classpath "0.2.3"]
+     [org.clojure/tools.reader "0.10.0"]
+   [org.tcrawley/dynapath "0.2.5" :exclusions [[org.clojure/clojure]]]
+ [cljfmt "0.6.4" :exclusions [[org.clojure/clojure] [org.clojure/clojurescript]]]
+   [com.googlecode.java-diff-utils/diffutils "1.3.0"]
+   [org.clojure/tools.cli "0.3.7"]
+   [org.clojure/tools.reader "1.2.2"]
+   [rewrite-clj "0.6.0"]
+     [org.clojure/tools.reader "0.10.0" :exclusions [[org.clojure/clojure]]]
+   [rewrite-cljs "0.4.4"]
+     [org.clojure/tools.reader "1.0.5"]
+ [mvxcvi/puget "1.1.0" :exclusions [[org.clojure/clojure]]]
+   [fipp "0.6.14"]
+     [org.clojure/core.rrb-vector "0.0.13"]
+   [mvxcvi/arrangement "1.1.1"]
+ [org.clojure/tools.namespace "0.3.0-alpha4" :exclusions [[org.clojure/clojure]]]
+   [org.clojure/java.classpath "0.2.3"]
+   [org.clojure/tools.reader "0.10.0"]
+ [thunknyc/profile "0.5.2" :exclusions [[org.clojure/clojure]]]
+ [org.clojure/tools.reader "1.2.2" :exclusions [[org.clojure/clojure]]]
+```
+
+And resolved tree:
+
+```
+ [cljs-tooling "0.3.1" :exclusions [[org.clojure/clojure]]]
+ [compliment "0.3.8" :exclusions [[org.clojure/clojure]]]
+ [fipp "0.6.15" :exclusions [[org.clojure/clojure]]]
+   [org.clojure/core.rrb-vector "0.0.13"]
+ [org.clojure/tools.trace "0.7.10" :exclusions [[org.clojure/clojure]]]
+ [cider/orchard "0.4.0" :exclusions [[org.clojure/clojure]]]
+   [org.clojure/java.classpath "0.3.0" :exclusions [[org.clojure/clojure]]]
+   [org.tcrawley/dynapath "0.2.5" :exclusions [[org.clojure/clojure]]]
+ [cljfmt "0.6.4" :exclusions [[org.clojure/clojure] [org.clojure/clojurescript]]]
+   [com.googlecode.java-diff-utils/diffutils "1.3.0"]
+   [org.clojure/tools.cli "0.3.7"]
+   [rewrite-clj "0.6.0"]
+   [rewrite-cljs "0.4.4"]
+ [mvxcvi/puget "1.1.0" :exclusions [[org.clojure/clojure]]]
+   [mvxcvi/arrangement "1.1.1"]
+ [org.clojure/tools.namespace "0.3.0-alpha4" :exclusions [[org.clojure/clojure]]]
+ [thunknyc/profile "0.5.2" :exclusions [[org.clojure/clojure]]]
+ [org.clojure/tools.reader "1.2.2" :exclusions [[org.clojure/clojure]]]
+```
+
+Based on this list of dependencies in the project file:
+
+```clojure
+  :dependencies [[nrepl "0.6.0"]
+                 ^:source-dep [cider/orchard "0.4.0"]
+                 ^:source-dep [thunknyc/profile "0.5.2"]
+                 ^:source-dep [mvxcvi/puget "1.1.0"]
+                 ^:source-dep [fipp "0.6.15"]
+                 ^:source-dep [compliment "0.3.8"]
+                 ^:source-dep [cljs-tooling "0.3.1"]
+                 ^:source-dep [cljfmt "0.6.4" :exclusions [org.clojure/clojurescript]]
+                 ^:source-dep [org.clojure/tools.namespace "0.3.0-alpha4"]
+                 ^:source-dep [org.clojure/tools.trace "0.7.10"]
+                 ^:source-dep [org.clojure/tools.reader "1.2.2"]]
+```
+
+In the **unresolved dependency tree** mode the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library does not work. Also in this mode MrAnderson applies transient dependency hygiene meaning that it does not search and replace occurrances of a transient depedency namespace in the project's own files. To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
 
 ```clojure
 :mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}
@@ -63,7 +139,7 @@ In the same section you can instruct MrAnderson to expose certain transient depe
 
 Here you have to provide a list of paths to dependencies to be exposed.
 
-To use the shadowing only mode you can either provide a flag in the above mentioned section
+To use the **shadowing only** mode you can either provide a flag in the above mentioned section
 
 ```clojure
 :mranderson {:shadowing-only true}
@@ -73,9 +149,11 @@ or you can provide the same flag on the command line:
 
     $ lein source-deps :shadowing-only true
 
-The latter superseeds the former.
+The latter supersedes the former.
 
-In the shadowing only mode MrAnderson works on a resolved dependency tree. Flattens the dependency tree out into a list and prefixes all namespaces and the references to them. This also means that all dependencies, even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree, therefore no transient dependency hygiene is applied in this mode. Also the above described config options (overrides and expositions) don't take effect.
+In the **shadowing only** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
+
+### Config and options
 
 Further config options
 
