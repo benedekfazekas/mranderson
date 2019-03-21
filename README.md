@@ -56,57 +56,57 @@ In the **shadowing only** mode MrAnderson flattens the resolved dependency tree 
 Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s unresolved tree (as it is at the time of writing this README) for reference:
 
 ```
- [cljs-tooling "0.3.1" :exclusions [[org.clojure/clojure]]]
- [compliment "0.3.8" :exclusions [[org.clojure/clojure]]]
- [fipp "0.6.15" :exclusions [[org.clojure/clojure]]]
+ [cljs-tooling "0.3.1"]
+ [compliment "0.3.8"]
+ [fipp "0.6.15"]
    [org.clojure/core.rrb-vector "0.0.13"]
- [org.clojure/tools.trace "0.7.10" :exclusions [[org.clojure/clojure]]]
- [cider/orchard "0.4.0" :exclusions [[org.clojure/clojure]]]
-   [org.clojure/java.classpath "0.3.0" :exclusions [[org.clojure/clojure]]]
-   [org.clojure/tools.namespace "0.3.0-alpha4" :exclusions [[org.clojure/clojure]]]
+ [org.clojure/tools.trace "0.7.10"]
+ [cider/orchard "0.4.0"]
+   [org.clojure/java.classpath "0.3.0"]
+   [org.clojure/tools.namespace "0.3.0-alpha4"]
      [org.clojure/java.classpath "0.2.3"]
      [org.clojure/tools.reader "0.10.0"]
-   [org.tcrawley/dynapath "0.2.5" :exclusions [[org.clojure/clojure]]]
- [cljfmt "0.6.4" :exclusions [[org.clojure/clojure] [org.clojure/clojurescript]]]
+   [org.tcrawley/dynapath "0.2.5"]
+ [cljfmt "0.6.4"]
    [com.googlecode.java-diff-utils/diffutils "1.3.0"]
    [org.clojure/tools.cli "0.3.7"]
    [org.clojure/tools.reader "1.2.2"]
    [rewrite-clj "0.6.0"]
-     [org.clojure/tools.reader "0.10.0" :exclusions [[org.clojure/clojure]]]
+     [org.clojure/tools.reader "0.10.0"]
    [rewrite-cljs "0.4.4"]
      [org.clojure/tools.reader "1.0.5"]
- [mvxcvi/puget "1.1.0" :exclusions [[org.clojure/clojure]]]
+ [mvxcvi/puget "1.1.0"]
    [fipp "0.6.14"]
      [org.clojure/core.rrb-vector "0.0.13"]
    [mvxcvi/arrangement "1.1.1"]
- [org.clojure/tools.namespace "0.3.0-alpha4" :exclusions [[org.clojure/clojure]]]
+ [org.clojure/tools.namespace "0.3.0-alpha4"]
    [org.clojure/java.classpath "0.2.3"]
    [org.clojure/tools.reader "0.10.0"]
- [thunknyc/profile "0.5.2" :exclusions [[org.clojure/clojure]]]
- [org.clojure/tools.reader "1.2.2" :exclusions [[org.clojure/clojure]]]
+ [thunknyc/profile "0.5.2"]
+ [org.clojure/tools.reader "1.2.2"]
 ```
 
 And resolved tree:
 
 ```
- [cljs-tooling "0.3.1" :exclusions [[org.clojure/clojure]]]
- [compliment "0.3.8" :exclusions [[org.clojure/clojure]]]
- [fipp "0.6.15" :exclusions [[org.clojure/clojure]]]
+ [cljs-tooling "0.3.1"]
+ [compliment "0.3.8"]
+ [fipp "0.6.15"]
    [org.clojure/core.rrb-vector "0.0.13"]
- [org.clojure/tools.trace "0.7.10" :exclusions [[org.clojure/clojure]]]
- [cider/orchard "0.4.0" :exclusions [[org.clojure/clojure]]]
-   [org.clojure/java.classpath "0.3.0" :exclusions [[org.clojure/clojure]]]
-   [org.tcrawley/dynapath "0.2.5" :exclusions [[org.clojure/clojure]]]
- [cljfmt "0.6.4" :exclusions [[org.clojure/clojure] [org.clojure/clojurescript]]]
+ [org.clojure/tools.trace "0.7.10"]
+ [cider/orchard "0.4.0"]
+   [org.clojure/java.classpath "0.3.0"]
+   [org.tcrawley/dynapath "0.2.5"]
+ [cljfmt "0.6.4"]
    [com.googlecode.java-diff-utils/diffutils "1.3.0"]
    [org.clojure/tools.cli "0.3.7"]
    [rewrite-clj "0.6.0"]
    [rewrite-cljs "0.4.4"]
- [mvxcvi/puget "1.1.0" :exclusions [[org.clojure/clojure]]]
+ [mvxcvi/puget "1.1.0"]
    [mvxcvi/arrangement "1.1.1"]
- [org.clojure/tools.namespace "0.3.0-alpha4" :exclusions [[org.clojure/clojure]]]
- [thunknyc/profile "0.5.2" :exclusions [[org.clojure/clojure]]]
- [org.clojure/tools.reader "1.2.2" :exclusions [[org.clojure/clojure]]]
+ [org.clojure/tools.namespace "0.3.0-alpha4"]
+ [thunknyc/profile "0.5.2"]
+ [org.clojure/tools.reader "1.2.2"]
 ```
 
 Based on this list of dependencies in the project file:
@@ -163,6 +163,9 @@ In the **shadowing only** mode no transient dependency hygiene is applied. Also 
 | skip-javaclass-repackage | false                          | CLI                   | If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein source-deps :skip-javaclass-repackage true`        |
 | prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein source-deps :prefix-exclusions "[\"classlojure\"]"`  |
 | watermark                | :mranderson/inlined            | project.clj           | When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
+| shadowing-only           | false                          | CLI, project.clj      | Switch between **unresolved tree** mode and **shadowing only** mode | `lein source-deps :shadowing-only true` |
+| overrides                | empty list                     | project.clj           | Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
+| expositions              | empty list                     | project.clj           | Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 
 ## Prerequisites
 
