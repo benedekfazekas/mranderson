@@ -163,7 +163,7 @@ In the **shadowing only** mode no transient dependency hygiene is applied. Also 
 | skip-javaclass-repackage | false                          | CLI                   | If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein source-deps :skip-javaclass-repackage true`        |
 | prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein source-deps :prefix-exclusions "[\"classlojure\"]"`  |
 | watermark                | :mranderson/inlined            | project.clj           | When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
-| shadowing-only           | false                          | CLI, project.clj      | Switch between **unresolved tree** mode and **shadowing only** mode | `lein source-deps :shadowing-only true` |
+| shadowing-only           | false                          | CLI, project.clj      | Switch between **unresolved tree** and **shadowing only** mode | `lein source-deps :shadowing-only true` |
 | overrides                | empty list                     | project.clj           | Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
 | expositions              | empty list                     | project.clj           | Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 
@@ -189,7 +189,7 @@ TODO
 
 ### Libraries that MrAnderson chokes on (and why)
 
-Here is a list of libraries that MrAnderson has problems with. This does not mean those libraries do anything wrong it is more likely MrAnderson does not understand something they are doing, hopefully yet...
+Here is a list of libraries that MrAnderson has problems with. This does not mean those libraries do anything wrong it is more likely MrAnderson does not understand something they are doing. Hopefully it will some day.
 
 TODO
 
