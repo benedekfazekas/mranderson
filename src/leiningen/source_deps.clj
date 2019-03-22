@@ -2,17 +2,24 @@
   (:require [clojure.edn :as edn]
             [me.raynes.fs :as fs]
             [mranderson.core :as c]
-            [mranderson.util :as u]))
+            [mranderson.util :as u])
+  (:import [java.util UUID]))
 
 (defn lookup-opt [opt-key opts]
   (second (drop-while #(not= % opt-key) opts)))
 
+(defn- generate-default-project-prefix []
+  (str "mranderson" (->  (UUID/randomUUID)
+                         str
+                         (.substring 0 8))))
+
 (defn- lein-project->ctx
   [{:keys [root target-path name version mranderson]} args]
   (let [opts                        (map #(edn/read-string %) args)
-        project-prefix              (lookup-opt :project-prefix opts)
-        pprefix                     (or (and project-prefix (clojure.core/name project-prefix))
-                                        (u/clean-name-version "mranderson" (u/mranderson-version)))
+        project-prefix-opt          (lookup-opt :project-prefix opts)
+        project-prefix              (or (and project-prefix-opt (clojure.core/name project-prefix-opt))
+                                        (and (nil? project-prefix-opt) (:project-prefix mranderson))
+                                        (generate-default-project-prefix))
         skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
         prefix-exclusions           (lookup-opt :prefix-exclusions opts)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
@@ -21,10 +28,10 @@
         shadowing-only              (or shadowing-only-opt (and (nil? shadowing-only-opt) (:shadowing-only mranderson)))]
     (u/debug "skip repackage" skip-repackage-java-classes)
     (u/debug "project mranderson" (prn-str mranderson))
-    (u/info "project prefix: " pprefix)
+    (u/info "project prefix: " project-prefix)
     {:pname                       name
      :pversion                    version
-     :pprefix                     pprefix
+     :pprefix                     project-prefix
      :skip-repackage-java-classes skip-repackage-java-classes
      :srcdeps                     srcdeps-relative
      :prefix-exclusions           prefix-exclusions
