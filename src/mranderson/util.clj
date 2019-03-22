@@ -1,9 +1,8 @@
 (ns mranderson.util
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.string :as str]
-            [leiningen.core.main :refer [info]]
-            [clojure.java.io :as io])
+            [leiningen.core.main :as lein-main]
+            [clojure.set :as s])
   (:import [java.io File]
            [com.tonicsystems.jarjar Rule]
            [mranderson.util JjPackageRemapper JjMainProcessor]
@@ -28,14 +27,21 @@
   ([dirs]
      (clojure-source-files-relative dirs nil)))
 
+(defn sym->file-name
+  [sym]
+  (-> (name sym)
+      (str/replace "-" "_")
+      (str/replace "." File/separator)))
+
 (defn relevant-clj-dep-path [src-path prefix pprefix]
-  (if (.endsWith src-path "target/srcdeps")
-    [(str "target/srcdeps/" prefix)]
-    (vector (str "target/srcdeps/"
-                 pprefix
-                 (-> src-path
-                     (str/split #"target/srcdeps")
-                     last)))))
+  (let [pprefix-path-frag (sym->file-name pprefix)]
+    (if-not (str/ends-with? src-path pprefix-path-frag)
+      (vector (str "target/srcdeps/"
+                   pprefix-path-frag
+                   (-> src-path
+                       (str/split (re-pattern pprefix-path-frag))
+                       last)))
+      [(str "target/srcdeps/" prefix)])))
 
 (defn clojure-source-files [dirs]
   (->> dirs
@@ -92,6 +98,15 @@
     (. rule setResult (str name-version "." java-dir ".@1"))
     rule))
 
+(defn warn [& args]
+  (apply lein-main/warn args))
+
+(defn info [& args]
+  (apply lein-main/info args))
+
+(defn debug [& args]
+  (apply lein-main/debug args))
+
 (defn apply-jarjar! [pname pversion]
   (let [java-dirs (java-class-dirs)
         name-version (clean-name-version pname pversion)
@@ -118,3 +133,36 @@
 (defn file->extension
   [file]
   (re-find #"\.clj[cs]?$" file))
+
+(defn extension->platform
+  [extension-of-moved]
+  (some->> (#{".cljs" ".clj"} extension-of-moved)
+           rest
+           (apply str)
+           keyword))
+
+(defn platform-comp [platform]
+  (when platform
+    (->>  #{platform}
+          (s/difference #{:cljs :clj})
+          first)))
+
+(defn- cljfile->dir [clj-file]
+  (->> (str/split clj-file #"/")
+       butlast
+       (str/join "/")))
+
+(defn remove-subdirs [dirs]
+  (->> (sort dirs)
+       (reduce (fn [ds dir]
+                 (let [last-dir (last ds)]
+                   (if (and last-dir (str/includes? dir last-dir))
+                     ds
+                     (conj ds dir)))) [])))
+
+(defn clj-files->dirs
+  [prefix clj-files]
+  (->> (map cljfile->dir clj-files)
+       (remove str/blank?)
+       (map (fn [clj-dir] (str prefix "/" clj-dir)))
+       set))
