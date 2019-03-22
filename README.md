@@ -49,11 +49,25 @@ Alternatively the modified dependencies and project files can be copied back to 
 
 MrAnderson has **two modes**. It can either work on an unresolved dependency tree (the default) or only shadow a list of dependencies based on a resolved dependency tree.
 
-Working on an **unresolved dependency tree** means that the same library -- even the same version of the library -- can occur multiple times in the dependency tree. When processing the tree MrAnderson creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
+Working on an **unresolved dependency tree** means that the same library -- even the same version of the library -- can occur multiple times in the dependency tree. When processing the tree MrAnderson walks it in a depth first order and creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
 
-In the **shadowing only** mode MrAnderson flattens the resolved dependency tree out into a topoligically ordered list and prefixes all namespaces in the dependencies and the references to them. This also means that all dependencies even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree.
+Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s list of dependencies in the project file (as it is at the time of writing this README):
 
-Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s unresolved tree (as it is at the time of writing this README) for reference:
+```clojure
+  :dependencies [[nrepl "0.6.0"]
+                 ^:source-dep [cider/orchard "0.4.0"]
+                 ^:source-dep [thunknyc/profile "0.5.2"]
+                 ^:source-dep [mvxcvi/puget "1.1.0"]
+                 ^:source-dep [fipp "0.6.15"]
+                 ^:source-dep [compliment "0.3.8"]
+                 ^:source-dep [cljs-tooling "0.3.1"]
+                 ^:source-dep [cljfmt "0.6.4" :exclusions [org.clojure/clojurescript]]
+                 ^:source-dep [org.clojure/tools.namespace "0.3.0-alpha4"]
+                 ^:source-dep [org.clojure/tools.trace "0.7.10"]
+                 ^:source-dep [org.clojure/tools.reader "1.2.2"]]
+```
+
+And the unresolved tree based on this list of dependencies for reference:
 
 ```
  [cljs-tooling "0.3.1"]
@@ -86,7 +100,22 @@ Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s unresolv
  [org.clojure/tools.reader "1.2.2"]
 ```
 
-And resolved tree:
+An example namespace of `[org.clojure/tools.reader "0.10.0"]` dependency of `[rewrite-clj "0.6.0"]` that is a dependency of `[cljfmt "0.6.4"]` will be prefixed like this:
+
+```clojure
+(ns ^{:mranderson/inlined true} cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.toolsreader.v0v10v0.clojure.tools.reader.edn)
+```
+
+and a reference to it in `cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.rewrite-clj.reader` like this:
+
+```clojure
+(:require [cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.toolsreader.v0v10v0.clojure.tools.reader
+             [edn :as edn])
+```
+
+In the **shadowing only** mode MrAnderson flattens the resolved dependency tree out into a topoligically ordered list and processes this ordered list. While processing MrAnderson refixes all namespaces in the dependencies and the references to them. This also means that all dependencies even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree.
+
+And the resolved tree of the same project:
 
 ```
  [cljs-tooling "0.3.1"]
@@ -109,20 +138,17 @@ And resolved tree:
  [org.clojure/tools.reader "1.2.2"]
 ```
 
-Based on this list of dependencies in the project file:
+The same namespace from `tools.reader` -- note that there is only one version of it available in the dependency tree `1.2.2`:
 
 ```clojure
-  :dependencies [[nrepl "0.6.0"]
-                 ^:source-dep [cider/orchard "0.4.0"]
-                 ^:source-dep [thunknyc/profile "0.5.2"]
-                 ^:source-dep [mvxcvi/puget "1.1.0"]
-                 ^:source-dep [fipp "0.6.15"]
-                 ^:source-dep [compliment "0.3.8"]
-                 ^:source-dep [cljs-tooling "0.3.1"]
-                 ^:source-dep [cljfmt "0.6.4" :exclusions [org.clojure/clojurescript]]
-                 ^:source-dep [org.clojure/tools.namespace "0.3.0-alpha4"]
-                 ^:source-dep [org.clojure/tools.trace "0.7.10"]
-                 ^:source-dep [org.clojure/tools.reader "1.2.2"]]
+(ns ^{:mranderson/inlined true} cider.inlined-deps.toolsreader.v1v2v2.clojure.tools.reader.edn)
+```
+
+and a reference to it in `cider.inlined-deps.rewrite-clj.v0v6v0.rewrite-clj.reader` looks like this:
+
+```clojure
+(:require [cider.inlined-deps.toolsreader.v1v2v2.clojure.tools.reader
+             [edn :as edn])
 ```
 
 In the **unresolved dependency tree** mode the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library does not work. Also in this mode MrAnderson applies transient dependency hygiene meaning that it does not search and replace occurrances of a transient depedency namespace in the project's own files. To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
@@ -153,7 +179,7 @@ or you can provide the same flag on the command line:
 
 The latter supersedes the former.
 
-In the **shadowing only** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
+Again: in the **shadowing only** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
 
 ### Further config options
 
