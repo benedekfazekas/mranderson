@@ -14,4 +14,5 @@
                  ^:source-dep [rewrite-clj "0.6.1"]
                  ^:source-dep [parallel "0.10"]
                  [com.googlecode.jarjar/jarjar "1.3"]]
+  :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]]}})
