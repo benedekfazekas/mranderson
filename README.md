@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/benedekfazekas/mranderson/tree/0.5.x.svg?style=svg)](https://circleci.com/gh/benedekfazekas/mranderson/tree/0.5.x)
+[![CircleCI](https://circleci.com/gh/benedekfazekas/mranderson/tree/master.svg?style=svg)](https://circleci.com/gh/benedekfazekas/mranderson/tree/0.5.x)
 
 # MrAnderson
 
