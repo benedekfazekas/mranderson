@@ -199,7 +199,9 @@ Leiningen 2.8.3 or above. For MrAnderson to work, does not mean your project is 
 
 ## Is it good? Should I use it?
 
-Yes and yes. Use it if you have depedency conflicts and don't care to solve them. Or if you don't want your library's dependencies to interfere with the dependencies of your users' (leiningen plugins is a good example here). Or if you want to explore a bit more in the hellish land of dependency handling.
+Yes and yes.
+
+Use it if you have dependency conflicts and don't care to solve them. In unresolved tree mode MrAnderson creates deeply nested, local dependencies where any subtree is isolated from the rest of the tree therefore the same library can occur several times without conflicting. Or use it if you don't want your library's dependencies to interfere with the dependencies of your users' (leiningen plugins is a good example here). Or if you want to explore a bit more in the hellish land of dependency handling.
 
 ### Projects that use MrAnderson
 
