@@ -1,4 +1,4 @@
-(ns leiningen.source-deps
+(ns leiningen.inline-deps
   (:require [clojure.edn :as edn]
             [me.raynes.fs :as fs]
             [mranderson.core :as c]
@@ -24,8 +24,8 @@
         prefix-exclusions           (lookup-opt :prefix-exclusions opts)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))
-        shadowing-only-opt          (lookup-opt :shadowing-only opts)
-        shadowing-only              (or shadowing-only-opt (and (nil? shadowing-only-opt) (:shadowing-only mranderson)))]
+        unresolved-tree-opt         (lookup-opt :unresolved-tree opts)
+        unresolved-tree             (or unresolved-tree-opt (and (nil? unresolved-tree-opt) (:unresolved-tree mranderson)))]
     (u/debug "skip repackage" skip-repackage-java-classes)
     (u/debug "project mranderson" (prn-str mranderson))
     (u/info "project prefix: " project-prefix)
@@ -36,7 +36,7 @@
      :srcdeps                     srcdeps-relative
      :prefix-exclusions           prefix-exclusions
      :project-source-dirs         project-source-dirs
-     :shadowing-only              shadowing-only
+     :unresolved-tree             unresolved-tree
      :overrides                   (:overrides mranderson)
      :expositions                 (:expositions mranderson)
      :watermark                   (:watermark mranderson :mranderson/inlined)}))
@@ -46,10 +46,15 @@
    :parent-clj-dirs []
    :branch          []})
 
-(defn source-deps
-  "Dependencies as source: used as if part of the project itself.
+(defn inline-deps
+  "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.
 
-   Somewhat node.js & npm style dependency handling."
+  Available options:
+
+  :project-prefix           string    Project prefix to use when shadowing
+  :skip-javaclass-repackage boolean   If true Jar Jar Links won't be used to repackage java classes
+  :prefix-exclusions        list      List of prefixes that should not be processed in imports
+  :unresolved-tree          boolean   Enforces unresolved tree mode"
   [{:keys [repositories dependencies source-paths target-path] :as project} & args]
   (c/copy-source-files source-paths target-path)
   (let [{:keys [pprefix] :as ctx} (lein-project->ctx project args)
