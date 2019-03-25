@@ -12,7 +12,7 @@ Use it if you have dependency conflicts and don't care to solve them. In **unres
 
 ## Usage
 
-MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.0-SNAPSHOT"]` into the `:plugins` vector of your project.clj.
+MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.0"]` into the `:plugins` vector of your project.clj.
 
 Mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
 
