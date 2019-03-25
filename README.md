@@ -27,7 +27,7 @@ Only the marked dependencies will be considered by MrAnderson.
 
 Then run
 
-    $ lein source-deps
+    $ lein inline-deps
 
 This retrieves and modifies the marked dependencies and copies them to `target/srcdeps` together with the modified project files -- their references to the dependencies need to change too.
 
@@ -181,7 +181,7 @@ To use the **unresolved tree** mode you can either provide a flag in the above m
 
 or you can provide the same flag on the command line:
 
-    $ lein source-deps :unresolved-tree true
+    $ lein inline-deps :unresolved-tree true
 
 The latter supersedes the former.
 
@@ -191,11 +191,11 @@ Again: in the **resolved tree** mode no transient dependency hygiene is applied.
 
 | Option                   | Default                        | CLI or project.clj    | Description | Example |
 |--------------------------|--------------------------------|-----------------------|-------------|---------|
-| project-prefix           | mranderson{rnd}                | CLI                   | project pecific prefix to use when shadowing            | `lein source-deps :project-prefix cider.inlined-deps` |
-| skip-javaclass-repackage | false                          | CLI                   | If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein source-deps :skip-javaclass-repackage true`        |
-| prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein source-deps :prefix-exclusions "[\"classlojure\"]"`  |
+| project-prefix           | mranderson{rnd}                | CLI                   | project pecific prefix to use when shadowing            | `lein inline-deps :project-prefix cider.inlined-deps` |
+| skip-javaclass-repackage | false                          | CLI                   | If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein inline-deps :skip-javaclass-repackage true`        |
+| prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein inline-deps :prefix-exclusions "[\"classlojure\"]"`  |
 | watermark                | :mranderson/inlined            | project.clj           | When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
-| unresolved-tree          | false                          | CLI, project.clj      | Switch between **unresolved tree** and **resolved tree** mode | `lein source-deps :unresolved-tree true` |
+| unresolved-tree          | false                          | CLI, project.clj      | Switch between **unresolved tree** and **resolved tree** mode | `lein inline-deps :unresolved-tree true` |
 | overrides                | empty list                     | project.clj           | Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
 | expositions              | empty list                     | project.clj           | Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 
