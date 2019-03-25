@@ -24,8 +24,8 @@
         prefix-exclusions           (lookup-opt :prefix-exclusions opts)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))
-        shadowing-only-opt          (lookup-opt :shadowing-only opts)
-        shadowing-only              (or shadowing-only-opt (and (nil? shadowing-only-opt) (:shadowing-only mranderson)))]
+        deeply-nested-opt           (lookup-opt :deeply-nested opts)
+        deeply-nested               (or deeply-nested-opt (and (nil? deeply-nested-opt) (:deeply-nested mranderson)))]
     (u/debug "skip repackage" skip-repackage-java-classes)
     (u/debug "project mranderson" (prn-str mranderson))
     (u/info "project prefix: " project-prefix)
@@ -36,7 +36,7 @@
      :srcdeps                     srcdeps-relative
      :prefix-exclusions           prefix-exclusions
      :project-source-dirs         project-source-dirs
-     :shadowing-only              shadowing-only
+     :deeply-nested               deeply-nested
      :overrides                   (:overrides mranderson)
      :expositions                 (:expositions mranderson)
      :watermark                   (:watermark mranderson :mranderson/inlined)}))
