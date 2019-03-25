@@ -22,9 +22,10 @@
 - track changes in a this file from this release instead of the github releases page
 
 ### Bug fixes
-- [Fix #19] Add watermark to mrandersoned dependency nses
-- [Fix #21] Rewrite README to make it more informative (hopefully)
-- [Fix #25] project-prefix's default is unique so mrandersoned libs using the same mranderson version can't clash
+- [Fix [#7](https://github.com/benedekfazekas/mranderson/issues/7)] Both **unresolved tree** and **resolved tree** modes fix overriden deps break topological sort issue. The topological order is not important when the unresolved tree is used whilest the topological order is derrived from the unresolved tree when resolved tree is used in **resolved tree** mode
+- [Fix [#19](https://github.com/benedekfazekas/mranderson/issues/19)] Add watermark to mrandersoned dependency nses
+- [Fix [#21](https://github.com/benedekfazekas/mranderson/issues/21)] Rewrite README to make it more informative (hopefully)
+- [Fix [#25](https://github.com/benedekfazekas/mranderson/issues/25)] project-prefix's default is unique so mrandersoned libs using the same mranderson version can't clash
 
 ## Previous versions
 
