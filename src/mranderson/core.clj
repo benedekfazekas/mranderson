@@ -262,7 +262,7 @@
   "Unzips and transforms files in an unresolved dependency tree."
   [unresolved-deps-tree paths ctx]
   (let [unresolved-deps-tree (t/evict-subtrees unresolved-deps-tree '#{org.clojure/clojure org.clojure/clojurescript})]
-    (u/info "in DEEPLY-NESTED mode, working on an unresolved dependency tree")
+    (u/info "in UNRESOLVED-TREE mode, working on an unresolved dependency tree")
     (t/walk-deps unresolved-deps-tree print-dep)
     (t/walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx)))
 
@@ -283,7 +283,7 @@
                                         (filter vector?)
                                         (reduce (fn [m dep] (assoc m dep nil)) {})
                                         (into (sorted-map-by topo-comparator)))]
-    (u/info "in SHADOWING-ONLY mode, working on a resolved dependency tree")
+    (u/info "in RESOLVED-TREE mode, working on a resolved dependency tree")
     (t/walk-deps resolved-deps print-dep)
     (t/walk-ordered-deps
      ordered-resolved-deps
@@ -293,13 +293,13 @@
      ctx)))
 
 (defn mranderson
-  [repositories dependencies {:keys [skip-repackage-java-classes deeply-nested pname pversion overrides] :as ctx} paths]
+  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
-        overrides                   (or (and deeply-nested overrides) {})
+        overrides                   (or (and unresolved-tree overrides) {})
         unresolved-deps-tree        (dr/expand-dep-hierarchy repositories resolved-deps-tree overrides)]
     (u/info "retrieve dependencies and munge clojure source files")
-    (if deeply-nested
+    (if unresolved-tree
       (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files)))

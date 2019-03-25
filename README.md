@@ -4,6 +4,12 @@
 
 MrAnderson is a dependency inlining and shadowing tool. It isolates the project's dependencies so they can not interfere with other libraries' dependencies.
 
+## Is it good? Should I use it?
+
+Yes and yes.
+
+Use it if you have dependency conflicts and don't care to solve them. In **unresolved tree** mode MrAnderson creates deeply nested, local dependencies where any subtree is isolated from the rest of the tree therefore the same library can occur several times without conflicting. Or use it if you don't want your library's dependencies to interfere with the dependencies of your users' (leiningen plugins is a good example here). Or if you want to explore a bit more in the hellish land of dependency handling.
+
 ## Usage
 
 MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.0-SNAPSHOT"]` into the `:plugins` vector of your project.clj.
@@ -45,11 +51,11 @@ Alternatively the modified dependencies and project files can be copied back to 
 
 ## Config and options
 
-### Two modes: shadowing only and deeply nested
+### Two modes: resolved tree and unresolved tree
 
-MrAnderson has **two modes**. It can either created a **deeply nested** directory structure for the unresolved dependency tree based on the marked dependencies or only shadow (**shadow only** -- the default) a list of dependencies based on a resolved dependency tree of the same dependencies.
+MrAnderson has **two modes**. It can either work on an **unresolved** dependency **tree** and create a deeply nested directory structure for the unresolved tree based on the marked dependencies or only shadow a list of dependencies based on a **resolved dependency** tree of the same dependencies. The latter is the default.
 
-In **deeply nested** mode the same library -- even the same version of the library -- can occur multiple times in the unresolved dependency tree. When processing the tree MrAnderson walks it in a depth first order and creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
+In **unresolved tree** mode the same library -- even the same version of the library -- can occur multiple times in the unresolved dependency tree. When processing the tree MrAnderson walks it in a depth first order and creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
 
 Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s list of dependencies in the project file (as it is at the time of writing this README):
 
@@ -113,7 +119,7 @@ and a reference to it in `cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.re
              [edn :as edn])
 ```
 
-In the **shadowing only** mode MrAnderson flattens the resolved dependency tree out into a topoligically ordered list and processes this ordered list. While processing MrAnderson refixes all namespaces in the dependencies and the references to them. This also means that all dependencies even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree.
+In the **resolved tree** mode MrAnderson flattens the resolved dependency tree out into a topoligically ordered list and processes this ordered list. While processing MrAnderson prefixes all namespaces in the dependencies and the references to them. This also means that all dependencies even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree.
 
 And the resolved tree of the same project:
 
@@ -151,7 +157,7 @@ and a reference to it in `cider.inlined-deps.rewrite-clj.v0v6v0.rewrite-clj.read
              [edn :as edn])
 ```
 
-In the **deeply nested** mode the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library does not work. Also in this mode MrAnderson applies transient dependency hygiene meaning that it does not search and replace occurrances of a transient depedency namespace in the project's own files. To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
+In the **unresolved tree** mode the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library does not work. Also in this mode MrAnderson applies transient dependency hygiene meaning that it does not search and replace occurrances of a transient depedency namespace in the project's own files. To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
 
 ```clojure
 :mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}
@@ -167,41 +173,35 @@ In the same section you can instruct MrAnderson to expose certain transient depe
 
 Here you have to provide a list of paths to dependencies to be exposed.
 
-To use the **deeply nested** mode you can either provide a flag in the above mentioned section
+To use the **unresolved tree** mode you can either provide a flag in the above mentioned section
 
 ```clojure
-:mranderson {:deeply-nested true}
+:mranderson {:unresolved-tree true}
 ```
 
 or you can provide the same flag on the command line:
 
-    $ lein source-deps :deeply-nested true
+    $ lein source-deps :unresolved-tree true
 
 The latter supersedes the former.
 
-Again: in the **shadowing only** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
+Again: in the **resolved tree** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
 
 ### Further config options
 
 | Option                   | Default                        | CLI or project.clj    | Description | Example |
 |--------------------------|--------------------------------|-----------------------|-------------|---------|
-| project-prefix           | mranderson{mranderson version} | CLI                   | project pecific prefix to use when shadowing            | `lein source-deps :project-prefix cider.inlined-deps` |
+| project-prefix           | mranderson{rnd}                | CLI                   | project pecific prefix to use when shadowing            | `lein source-deps :project-prefix cider.inlined-deps` |
 | skip-javaclass-repackage | false                          | CLI                   | If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein source-deps :skip-javaclass-repackage true`        |
 | prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein source-deps :prefix-exclusions "[\"classlojure\"]"`  |
 | watermark                | :mranderson/inlined            | project.clj           | When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
-| deeply-nested           | false                          | CLI, project.clj      | Switch between **deeply nested** and **shadowing only** mode | `lein source-deps :deeply-nested true` |
-| overrides                | empty list                     | project.clj           | Defines dependency overrides in **deeply nested** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
-| expositions              | empty list                     | project.clj           | Makes transient dependencies available in the project's source files in **deeply nested** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
+| unresolved-tree          | false                          | CLI, project.clj      | Switch between **unresolved tree** and **resolved tree** mode | `lein source-deps :unresolved-tree true` |
+| overrides                | empty list                     | project.clj           | Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
+| expositions              | empty list                     | project.clj           | Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 
 ## Prerequisites
 
 Leiningen 2.8.3 or above. For MrAnderson to work, does not mean your project is restricted to a java or clojure version.
-
-## Is it good? Should I use it?
-
-Yes and yes.
-
-Use it if you have dependency conflicts and don't care to solve them. In **deeply nested** mode MrAnderson creates deeply nested, local dependencies where any subtree is isolated from the rest of the tree therefore the same library can occur several times without conflicting. Or use it if you don't want your library's dependencies to interfere with the dependencies of your users' (leiningen plugins is a good example here). Or if you want to explore a bit more in the hellish land of dependency handling.
 
 ### Projects that use MrAnderson
 
