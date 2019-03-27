@@ -1,10 +1,10 @@
-(defproject thomasa/mranderson "0.5.0"
+(defproject thomasa/mranderson "0.5.1-SNAPSHOT"
   :description "Leiningen plugin to download and use some dependencies as source."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :eval-in :leiningen
-  :plugins [[thomasa/mranderson "0.5.0-SNAPSHOT"]]
+  :plugins [[thomasa/mranderson "0.5.0"]]
   :java-source-paths ["java-src"]
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
