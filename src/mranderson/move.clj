@@ -76,12 +76,21 @@
 
 (defn- java-style-prefix?
   [node node-sexpr old-sym]
-  (let [old-as-java-pkg (java-package old-sym)
-        java-pkg-prefix (str old-as-java-pkg ".")]
-    (and
-     (str/includes? (name old-sym) "-")
-     (or (= node-sexpr (symbol old-as-java-pkg))
-         (str/starts-with? node-sexpr java-pkg-prefix)))))
+  (let [old-as-java-pkg     (java-package old-sym)
+        java-pkg-prefix     (str old-as-java-pkg ".")
+        leftmost-node       (z/leftmost node)
+        leftmost-node-sexpr (and leftmost-node
+                                 (not
+                                  (#{:uneval}
+                                   (b/tag leftmost-node)))
+                                 (b/sexpr leftmost-node))]
+    (or
+     (and
+      (str/includes? (name old-sym) "-")
+      (= node-sexpr (symbol old-as-java-pkg)))
+     (and
+      (= :import leftmost-node-sexpr)
+      (str/starts-with? node-sexpr java-pkg-prefix)))))
 
 (defn- libspec-prefix?
   [node node-sexpr old-sym]

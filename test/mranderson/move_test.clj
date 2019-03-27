@@ -12,7 +12,9 @@
 (defn foo []
   (println \"nuf said\"))
 
-(deftype FourType [field])")
+(deftype FourType [field])
+
+(deftype FooType [])")
 
 (def ex-5
   "(ns example.five
@@ -39,7 +41,8 @@
             [example.a
              [foo]
              [bar]])
-  (:import [example.a.four FourType]))
+  (:import [example.a.four FourType]
+           example.a.four.FooType))
 
 (defn foo []
   (example.a.four/foo))
@@ -173,7 +176,7 @@
         (t/is (every? #(.contains (slurp %) "example.b.four")
                       [file-one file-two new-file-four])
               "affected files should refer to new ns")
-        (t/is (= 8 (count (re-seq #"example.b.four" (slurp file-two))))
+        (t/is (= 9 (count (re-seq #"example.b.four" (slurp file-two))))
               "all occurances of old ns should be replace with new")
         (t/is (re-find #"\(:example.b.four/" (slurp file-one))
               "type of occurence is retained if keyword")

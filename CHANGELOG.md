@@ -6,6 +6,8 @@
 
 - [Fix [#29](https://github.com/benedekfazekas/mranderson/issues/29)] Only consider sym a libspec-prefix if it is at the beginning of a list
 - [Fix [#28](https://github.com/benedekfazekas/mranderson/issues/28)] Fully qualified sym can be a dotted prefix to refer an `def` in cljs
+- [Fix [#14](https://github.com/benedekfazekas/mranderson/issues/14)] Teach mranderson about imports where the namespace name prefixes the record name with a dot, for exampe `(:import foo.bar.baz.FooBar)`
+
 
 ## 0.5.0
 
