@@ -208,6 +208,7 @@ Leiningen 2.8.3 or above. For MrAnderson to work, does not mean your project is 
 - [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)
 - [refactor-nrepl](https://github.com/clojure-emacs/refactor-nrepl)
 - [re-frame-10x](https://github.com/Day8/re-frame-10x)
+- [iced-nrepl](https://github.com/liquidz/iced-nrepl)
 
 ### Libraries that work with MrAnderson
 
