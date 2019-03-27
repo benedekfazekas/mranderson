@@ -86,13 +86,15 @@
 (defn- libspec-prefix?
   [node node-sexpr old-sym]
   (let [old-sym-prefix-libspec (prefix-libspec old-sym)
-        parent-leftmost-node  (z/leftmost (z/up node))
-        parent-leftmost-sexpr (and parent-leftmost-node
-                                   (not
-                                    (#{:uneval}
-                                     (b/tag parent-leftmost-node)))
-                                   (b/sexpr parent-leftmost-node))]
-    (and (= :require parent-leftmost-sexpr)
+        first-node?            (z/leftmost? node)
+        parent-leftmost-node   (z/leftmost (z/up node))
+        parent-leftmost-sexpr  (and parent-leftmost-node
+                                    (not
+                                     (#{:uneval}
+                                      (b/tag parent-leftmost-node)))
+                                    (b/sexpr parent-leftmost-node))]
+    (and first-node?
+         (= :require parent-leftmost-sexpr)
          (= node-sexpr old-sym-prefix-libspec))))
 
 (defn- contains-sym? [old-sym node]

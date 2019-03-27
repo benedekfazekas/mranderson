@@ -91,6 +91,16 @@
 
 (def ex-seven-cljs "(ns example.seven)")
 
+(def medley-user-example
+  "(ns example.user.medley
+ (:require [medley.core :as medley]))")
+
+(def medley-stub "(ns medley.core)")
+
+(def medley-user-expected
+  "(ns ^{:inlined true} example.user.medley
+ (:require [moved.medley.core :as medley]))")
+
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]
     (.delete temp-file)
@@ -122,7 +132,10 @@
         file-edn      (create-source-file! (io/file example-dir "edn.clj") ex-edn)
         file-cljc     (create-source-file! (io/file example-dir "cross.cljc") ex-cljc)
         file-seven-clj  (create-source-file! (io/file example-dir "seven.clj") ex-seven-clj)
-        file-seven-cljs (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)]
+        file-seven-cljs (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
+        medley-dir   (io/file src-dir "medley")
+        file-medley  (create-source-file! (io/file medley-dir "core.clj") medley-stub)
+        file-medley-user (create-source-file! (io/file example-dir "user" "medley.clj") medley-user-example)]
 
     (let [file-three-last-modified (.lastModified file-three)]
 
@@ -162,7 +175,7 @@
         (t/is (re-find #"\[example\.b\s*\[foo\]\s*\[bar\]\]" (slurp file-two))
               "prefixes should be replaced")
         (t/is (= ex-edn (slurp file-edn))
-         "clj file wo/ ns macro is unchanged"))
+              "clj file wo/ ns macro is unchanged"))
       (t/testing "move ns with dash, deftype, defrecord, import"
         (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir] :inlined)
 
@@ -186,4 +199,9 @@
         (sut/move-ns 'example.seven 'example.clj.seven src-dir ".clj" [src-dir] nil)
         (sut/move-ns 'example.seven 'example.cljs.seven src-dir ".cljs" [src-dir] nil)
 
-        (t/is (= (slurp file-cljc) ex-cljc-expected))))))
+        (t/is (= (slurp file-cljc) ex-cljc-expected)))
+
+      (t/testing "testing alias is first section of two section namespace"
+        (sut/move-ns 'medley.core 'moved.medley.core src-dir ".clj" [src-dir] :inlined)
+
+        (t/is (= (slurp file-medley-user) medley-user-expected))))))
