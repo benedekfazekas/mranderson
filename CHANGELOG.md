@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- [Fix [#29](https://github.com/benedekfazekas/mranderson/issues/29)] Only consider sym a libspec-prefix if it is at the beginning of a list
+- [Fix [#28](https://github.com/benedekfazekas/mranderson/issues/28)] Fully qualified sym can be a dotted prefix to refer an `def` in cljs
+
 ## 0.5.0
 
 ### Breaking changes
