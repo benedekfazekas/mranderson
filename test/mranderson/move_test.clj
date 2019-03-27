@@ -44,6 +44,11 @@
 (defn foo []
   (example.a.four/foo))
 
+(defn cljs-foo
+  \"This is valid in cljs i am told.\"
+  []
+  (example.a.four.foo))
+
 (def delayed-four
   (do
     (require 'example.a.four)
@@ -168,7 +173,7 @@
         (t/is (every? #(.contains (slurp %) "example.b.four")
                       [file-one file-two new-file-four])
               "affected files should refer to new ns")
-        (t/is (= 7 (count (re-seq #"example.b.four" (slurp file-two))))
+        (t/is (= 8 (count (re-seq #"example.b.four" (slurp file-two))))
               "all occurances of old ns should be replace with new")
         (t/is (re-find #"\(:example.b.four/" (slurp file-one))
               "type of occurence is retained if keyword")

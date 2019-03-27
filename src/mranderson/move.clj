@@ -166,6 +166,8 @@
 (defn- source-replacement [old-sym new-sym match]
   (let [old-ns-ref      (name old-sym)
         new-ns-ref      (name new-sym)
+        old-ns-ref-dot  (str old-ns-ref ".")
+        new-ns-ref-dot  (str new-ns-ref ".")
         old-pkg-prefix  (java-package old-sym)
         new-pkg-prefix  (java-package new-sym)
         old-type-prefix (str "^" (java-package old-sym))
@@ -181,6 +183,9 @@
 
       (str/starts-with? match old-type-prefix)
       (str/replace match old-type-prefix new-type-prefix)
+
+      (str/starts-with? match old-ns-ref-dot)
+      (str/replace match old-ns-ref-dot new-ns-ref-dot)
 
       :default
       match)))
