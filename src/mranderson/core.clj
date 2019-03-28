@@ -25,13 +25,17 @@
    (unzip source (name source)))
   ([source target-dir]
    (let [zip (ZipFile. (fs/file source))
-         entries (enumeration-seq (.entries zip))]
-     (doseq [entry entries :when (not (.isDirectory ^java.util.zip.ZipEntry entry))
-             :let [f (zip-target-file target-dir entry)]]
+         entries (enumeration-seq (.entries zip))
+         entry-pred (fn entry-pred [^java.util.zip.ZipEntry entry]
+                      (not (or (.isDirectory entry)
+                               (str/includes? (str entry) "META-INF"))))]
+     (doseq [entry entries
+             :when (entry-pred entry)
+             :let  [f (zip-target-file target-dir entry)]]
        (fs/mkdirs (fs/parent f))
        (io/copy (.getInputStream zip entry) f))
      (->> entries
-          (filter #(not (.isDirectory ^java.util.zip.ZipEntry %)))
+          (filter entry-pred)
           (map #(.getName %))
           (filter #(or (.endsWith % ".clj")
                        (.endsWith % ".cljc")

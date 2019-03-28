@@ -8,6 +8,9 @@
 - [Fix [#28](https://github.com/benedekfazekas/mranderson/issues/28)] Fully qualified sym can be a dotted prefix to refer an `def` in cljs
 - [Fix [#14](https://github.com/benedekfazekas/mranderson/issues/14)] Teach mranderson about imports where the namespace name prefixes the record name with a dot, for exampe `(:import foo.bar.baz.FooBar)`
 
+### Changes
+
+- [Fix [#31](https://github.com/benedekfazekas/mranderson/issues/31)] Do not copy anything under `META-INF` directory when unzipping dependency for inlining as meta files are unnecessary in the end product.
 
 ## 0.5.0
 
