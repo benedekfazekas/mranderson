@@ -90,7 +90,8 @@
   (apply str (drop (inc (count root)) (first source-paths))))
 
 (defn source-dep? [dependency]
-  (:source-dep (meta dependency)))
+  (let [{:keys [source-dep inline-dep]} (meta dependency)]
+    (or source-dep inline-dep)))
 
 (defn- create-rule [name-version java-dir]
   (let [rule (Rule.)]

@@ -14,16 +14,16 @@ Use it if you have dependency conflicts and don't care to solve them. In **unres
 
 MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.0"]` into the `:plugins` vector of your project.clj.
 
-Mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:source-dep` meta tag. For example:
+Mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:inline-dep` meta tag. For example:
 
 ```clojure
 :dependencies [[org.clojure/clojure "1.5.1"]
-               ^:source-dep [org.clojure/tools.namespace "0.2.5"]
-               ^:source-dep [org.clojure/tools.reader "0.8.5"]
-               ^:source-dep [org.clojure/tools.nrepl "0.2.3"]]
+               ^:inline-dep [org.clojure/tools.namespace "0.2.5"]
+               ^:inline-dep [org.clojure/tools.reader "0.8.5"]
+               ^:inline-dep [org.clojure/tools.nrepl "0.2.3"]]
 ```
 
-Only the marked dependencies will be considered by MrAnderson.
+Only the marked dependencies will be considered by MrAnderson. (Both `:inline-dep` and `:source-dep` meta tags are supported.)
 
 Then run
 
