@@ -109,6 +109,22 @@
   "(ns ^{:inlined true} example.user.medley
  (:require [moved.medley.core :as medley]))")
 
+(def example-eight
+  "(ns example.eight)
+ (deftype EightType [])
+ (deftype TypeEight [])")
+
+(def example-nine
+  "(ns example.nine
+ (:import [example.eight EightType]
+           example.eight.TypeEight))")
+
+(def example-nine-expected
+  "(ns example.nine
+ (:import [with_dash.example.eight EightType]
+           with_dash.example.eight.TypeEight))")
+
+
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]
     (.delete temp-file)
@@ -143,7 +159,9 @@
         file-seven-cljs (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
         medley-dir   (io/file src-dir "medley")
         file-medley  (create-source-file! (io/file medley-dir "core.clj") medley-stub)
-        file-medley-user (create-source-file! (io/file example-dir "user" "medley.clj") medley-user-example)]
+        file-medley-user (create-source-file! (io/file example-dir "user" "medley.clj") medley-user-example)
+        file-eight   (create-source-file! (io/file example-dir "eight.clj") example-eight)
+        file-nine   (create-source-file! (io/file example-dir "nine.clj") example-nine)]
 
     (let [file-three-last-modified (.lastModified file-three)]
 
@@ -184,6 +202,12 @@
               "prefixes should be replaced")
         (t/is (= ex-edn (slurp file-edn))
               "clj file wo/ ns macro is unchanged"))
+
+      (t/testing "testing import deftype no dash, dash in the prefix"
+        (sut/move-ns 'example.eight 'with-dash.example.eight src-dir ".clj" [src-dir] nil)
+
+        (t/is (= (slurp file-nine) example-nine-expected)))
+
       (t/testing "move ns with dash, deftype, defrecord, import"
         (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir] :inlined)
 

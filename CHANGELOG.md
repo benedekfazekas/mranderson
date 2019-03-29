@@ -5,13 +5,14 @@
 ### Bug fixes
 
 - [Fix [#29](https://github.com/benedekfazekas/mranderson/issues/29)] Only consider sym a libspec-prefix if it is at the beginning of a list
-- [Fix [#28](https://github.com/benedekfazekas/mranderson/issues/28)] Fully qualified sym can be a dotted prefix to refer an `def` in cljs
+- [Fix [#28](https://github.com/benedekfazekas/mranderson/issues/28)] Fully qualified sym can be a dotted prefix to refer a `def` in cljs
 - [Fix [#14](https://github.com/benedekfazekas/mranderson/issues/14)] Teach mranderson about imports where the namespace name prefixes the record name with a dot, for exampe `(:import foo.bar.baz.FooBar)`
 
 ### Changes
 
 - [Fix [#31](https://github.com/benedekfazekas/mranderson/issues/31)] Do not copy anything under `META-INF` directory when unzipping dependency for inlining as meta files are unnecessary in the end product.
 - [Fix [#30](https://github.com/benedekfazekas/mranderson/issues/30)] Both `:inline-dep` and `:source-dep` meta tag on dependencies are supported to signal that MrAnderson should inline given dependency.
+- Related to [#14](https://github.com/benedekfazekas/mranderson/issues/14) when the ns macro is processed the `:import` section of the ns macro is processed first only when that part is done the rest of the ns macro is considered for replacements.
 
 ## 0.5.0
 

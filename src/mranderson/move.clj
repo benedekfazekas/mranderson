@@ -70,27 +70,11 @@
 (defn- java-package [sym]
   (str/replace (name sym) "-" "_"))
 
-(defn- sexpr=
-  [node-sexpr old-sym]
-  (= node-sexpr old-sym))
-
 (defn- java-style-prefix?
-  [node node-sexpr old-sym]
-  (let [old-as-java-pkg     (java-package old-sym)
-        java-pkg-prefix     (str old-as-java-pkg ".")
-        leftmost-node       (z/leftmost node)
-        leftmost-node-sexpr (and leftmost-node
-                                 (not
-                                  (#{:uneval}
-                                   (b/tag leftmost-node)))
-                                 (b/sexpr leftmost-node))]
-    (or
-     (and
-      (str/includes? (name old-sym) "-")
-      (= node-sexpr (symbol old-as-java-pkg)))
-     (and
-      (= :import leftmost-node-sexpr)
-      (str/starts-with? node-sexpr java-pkg-prefix)))))
+  [old-sym node]
+  (when-not (#{:uneval} (b/tag node))
+    (when-let [node-sexpr (b/sexpr node)]
+      (str/starts-with? node-sexpr (java-package old-sym)))))
 
 (defn- libspec-prefix?
   [node node-sexpr old-sym]
@@ -110,8 +94,7 @@
   (when-not (#{:uneval} (b/tag node))
     (when-let [node-sexpr (b/sexpr node)]
       (or
-       (sexpr= node-sexpr old-sym)
-       (java-style-prefix? node node-sexpr old-sym)
+       (= node-sexpr old-sym)
        (libspec-prefix? node node-sexpr old-sym)))))
 
 (defn- ->new-node [old-node old-sym new-sym]
@@ -122,9 +105,6 @@
       (str/replace-first
        (name old-sym)
        (name new-sym))
-
-      (str/includes? (name old-sym) "-")
-      (str/replace-first (java-package old-sym) (java-package new-sym))
 
       (= old-prefix old-node)
       (str/replace-first
@@ -158,15 +138,39 @@
           [nil content])))))
 
 (defn- watermark-ns-maybe [ns-loc watermark]
-  (some-> (z/down ns-loc)
-          z/right
-          (z/edit (fn [ns-name] (with-meta ns-name (assoc (meta ns-name) watermark true))))
-          z/root
-          z/edn))
+  (or (and watermark
+           (some-> (z/down ns-loc)
+                   z/right
+                   (z/edit (fn [ns-name] (with-meta ns-name (assoc (meta ns-name) watermark true))))
+                   z/root
+                   z/edn))
+      ns-loc))
+
+(defn- import? [node]
+  (when-not (#{:uneval} (b/tag node))
+    (when-let [node-sexpr (b/sexpr node)]
+      (= :import node-sexpr))))
+
+(defn- ->new-import-node [old-sym new-sym old-node]
+  (let [new-node (str/replace old-node (java-package old-sym) (java-package new-sym))]
+    (cond
+      (symbol? old-node) (symbol new-node)
+
+      :default new-node)))
+
+(defn- replace-in-import [ns-loc old-sym new-sym]
+  (or
+   (loop [loc (z/find-next-depth-first ns-loc import?)]
+     (if-let [found-node (some-> loc
+                                 (z/find-next-depth-first (partial java-style-prefix? old-sym))
+                                 (z/edit (partial ->new-import-node old-sym new-sym)))]
+       (recur found-node)
+       (when loc (z/edn (z/root loc)))))
+   ns-loc))
 
 (defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
-  (loop [loc (or (and watermark (watermark-ns-maybe ns-loc watermark))
-                 ns-loc)]
+  (loop [loc (-> (watermark-ns-maybe ns-loc watermark)
+                 (replace-in-import old-sym new-sym))]
     (if-let [found-node (some-> (z/find-next-depth-first loc (partial contains-sym? old-sym))
                                 (z/edit (partial replace-in-node old-sym new-sym)))]
       (recur found-node)
