@@ -117,12 +117,14 @@
 (def example-nine
   "(ns example.nine
  (:import [example.eight EightType]
-           example.eight.TypeEight))")
+           example.eight.TypeEight)
+ (:require [example.eight :as eight]))")
 
 (def example-nine-expected
   "(ns example.nine
  (:import [with_dash.example.eight EightType]
-           with_dash.example.eight.TypeEight))")
+           with_dash.example.eight.TypeEight)
+ (:require [with-dash.example.eight :as eight]))")
 
 
 (defn- create-temp-dir! [dir-name]

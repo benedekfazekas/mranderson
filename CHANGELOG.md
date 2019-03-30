@@ -12,7 +12,7 @@
 
 - [Fix [#31](https://github.com/benedekfazekas/mranderson/issues/31)] Do not copy anything under `META-INF` directory when unzipping dependency for inlining as meta files are unnecessary in the end product.
 - [Fix [#30](https://github.com/benedekfazekas/mranderson/issues/30)] Both `:inline-dep` and `:source-dep` meta tag on dependencies are supported to signal that MrAnderson should inline given dependency.
-- Related to [#14](https://github.com/benedekfazekas/mranderson/issues/14) when the ns macro is processed the `:import` section of the ns macro is processed first only when that part is done the rest of the ns macro is considered for replacements.
+- Related to [#14](https://github.com/benedekfazekas/mranderson/issues/14) when the ns macro is processed the `:import` section of the ns macro is processed first. Only when that part is done the rest of the ns macro is considered for replacements.
 
 ## 0.5.0
 

@@ -158,15 +158,21 @@
 
       :default new-node)))
 
+(defn- replace-in-import* [import-loc old-sym new-sym]
+  (loop [loc import-loc]
+    (if-let [found-node (some-> loc
+                                (z/find-next-depth-first (partial java-style-prefix? old-sym))
+                                (z/edit (partial ->new-import-node old-sym new-sym)))]
+      (recur found-node)
+      (z/root loc))))
+
 (defn- replace-in-import [ns-loc old-sym new-sym]
-  (or
-   (loop [loc (z/find-next-depth-first ns-loc import?)]
-     (if-let [found-node (some-> loc
-                                 (z/find-next-depth-first (partial java-style-prefix? old-sym))
-                                 (z/edit (partial ->new-import-node old-sym new-sym)))]
-       (recur found-node)
-       (when loc (z/edn (z/root loc)))))
-   ns-loc))
+  (if-let [import-loc (some-> (z/find-next-depth-first ns-loc import?)
+                              (z/up))]
+    (-> (z/replace import-loc (replace-in-import* (z/edn (z/node import-loc)) old-sym new-sym))
+        z/root
+        z/edn)
+    ns-loc))
 
 (defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
   (loop [loc (-> (watermark-ns-maybe ns-loc watermark)
