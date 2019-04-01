@@ -297,6 +297,21 @@
      ctx)))
 
 (defn mranderson
+  "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.
+
+  `repositories` to resolve dependencies, `dependencies` list of dependencies to inline and shadow, `ctx` for opts and project specific attributes, `paths` for project specific paths.
+
+  `ctx` in detail:
+  - pname: project name
+  - pversion: project version
+  - pprefix: project prefix, defaults to mranderson{rnd}
+  - skip-repackage-java-classes: Skips shadowing java classes part of a dependency if true
+  - prefix-exclusions: prefixes to exclude when prefixing imports for java classes
+  - unresolved-tree: switch to unresolved tree mode if true
+  - overrides: overrides in the unresolved tree in unresolved tree mode
+  - expositions: transient dependencies made available for the project source files in unresolved tree mode
+  - watermark: meta flag to mark inlined dependencies"
+
   [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)

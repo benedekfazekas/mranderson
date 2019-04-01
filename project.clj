@@ -1,5 +1,5 @@
 (defproject thomasa/mranderson "0.5.1-SNAPSHOT"
-  :description "Leiningen plugin to download and use some dependencies as source."
+  :description "Dependency inlining and shadowing tool."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

@@ -1,5 +1,5 @@
 [![CircleCI](https://circleci.com/gh/benedekfazekas/mranderson/tree/master.svg?style=svg)](https://circleci.com/gh/benedekfazekas/mranderson/tree/master)
-
+[![Clojars Project](https://img.shields.io/clojars/v/thomasa/mranderson.svg)](https://clojars.org/thomasa/mranderson)
 # MrAnderson
 
 MrAnderson is a dependency inlining and shadowing tool. It isolates the project's dependencies so they can not interfere with other libraries' dependencies.
