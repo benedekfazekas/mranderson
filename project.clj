@@ -15,4 +15,5 @@
                  ^:source-dep [parallel "0.10"]
                  [com.googlecode.jarjar/jarjar "1.3"]]
   :mranderson {:project-prefix "mranderson.inlined"}
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]]}})
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]
+                                  [leiningen-core "2.8.3"]]}})
