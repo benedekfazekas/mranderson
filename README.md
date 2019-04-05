@@ -203,7 +203,7 @@ Again: in the **resolved tree** mode no transient dependency hygiene is applied.
 
 ## Prerequisites
 
-Leiningen 2.8.3 or above. For MrAnderson to work, does not mean your project is restricted to a java or clojure version.
+Leiningen 2.9.1 or above. For MrAnderson to work, does not mean your project is restricted to a java or clojure version.
 
 ### Projects that use MrAnderson
 
