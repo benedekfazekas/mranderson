@@ -211,6 +211,7 @@ Leiningen 2.9.1 or above. For MrAnderson to work, does not mean your project is 
 - [refactor-nrepl](https://github.com/clojure-emacs/refactor-nrepl)
 - [re-frame-10x](https://github.com/Day8/re-frame-10x)
 - [iced-nrepl](https://github.com/liquidz/iced-nrepl)
+- [conjure](https://github.com/Olical/conjure) -- uses MrAnderson directly, not as a `leiningen` plugin
 
 ### Libraries that work with MrAnderson
 
