@@ -16,4 +16,4 @@
                  [com.googlecode.jarjar/jarjar "1.3"]]
   :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]
-                                  [leiningen-core "2.9.0"]]}})
+                                  [leiningen-core "2.9.1"]]}})
