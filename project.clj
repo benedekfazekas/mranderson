@@ -16,4 +16,9 @@
                  [com.googlecode.jarjar/jarjar "1.3"]]
   :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]
-                                  [leiningen-core "2.9.1"]]}})
+                                  [leiningen-core "2.9.1"]]}
+             :kaocha {:dependencies [[lambdaisland/kaocha "0.0-418"]
+                                     [lambdaisland/kaocha-cloverage "0.0-32"]]}}
+  :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]
+            "kaocha-watch" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--watch"]
+            "kaocha-coverage" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--plugin" "cloverage"]})

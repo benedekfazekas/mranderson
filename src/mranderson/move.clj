@@ -246,15 +246,16 @@
   are needed. When done puts the ns form and body back together."
   [content old-sym new-sym watermark extension-of-moved file-ext]
   (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
-        opp-platform            (util/platform-comp (util/extension->platform extension-of-moved))
-        [replaced-nodes ns-loc] (or (and (= ".cljc" file-ext) opp-platform
-                                         (find-and-replace-platform-specific-subforms opp-platform ns-loc))
+        opposite-platform       (util/platform-comp (util/extension->platform extension-of-moved))
+        [replaced-nodes ns-loc] (or (and (= ".cljc" file-ext)
+                                         opposite-platform
+                                         (find-and-replace-platform-specific-subforms opposite-platform ns-loc))
                                     [[] ns-loc])
 
         new-ns-form             (future (replace-in-ns-form ns-loc old-sym new-sym watermark))
         new-source-sans-ns      (future (replace-in-source source-sans-ns old-sym new-sym))
         new-ns-form             (if (seq replaced-nodes)
-                                  (restore-platform-specific-subforms opp-platform replaced-nodes @new-ns-form)
+                                  (restore-platform-specific-subforms opposite-platform replaced-nodes @new-ns-form)
                                   @new-ns-form)]
     (or
      (and
