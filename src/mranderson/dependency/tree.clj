@@ -1,6 +1,5 @@
 (ns mranderson.dependency.tree
-  (:require [clojure.tools.namespace.dependency :as dep]
-            [mranderson.util :as u]))
+  (:require [clojure.tools.namespace.dependency :as dep]))
 
 ;; inlined from leiningen source
 (defn walk-deps
@@ -34,7 +33,7 @@
   ([deps resolve-dep-fn overrides path]
    (->> (map
          (fn [[dep _]]
-           (let [[override-k override-v] (first (filter (comp (partial path-pred path dep) key) overrides))
+           (let [[_override-k override-v] (first (filter (comp (partial path-pred path dep) key) overrides))
                  [dep subdeps] (first (resolve-dep-fn [(or override-v dep)]))]
              [dep
               (when (seq subdeps)

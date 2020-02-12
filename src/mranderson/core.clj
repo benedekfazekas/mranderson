@@ -229,7 +229,7 @@
           (u/debug "    new ns:" new-ns)
           (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-deps-dirs watermark)
           (when (or (str/ends-with? src-path (u/sym->file-name pprefix)) expose?)
-            (move/replace-ns-symbol-in-source-files old-ns new-ns srcdeps (u/file->extension (str clj-file)) project-source-dirs nil)))
+            (move/replace-ns-symbol-in-source-files old-ns new-ns (u/file->extension (str clj-file)) project-source-dirs nil)))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
           (let [old-path (str "target/srcdeps/" clj-file)

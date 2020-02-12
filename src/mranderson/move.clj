@@ -28,7 +28,7 @@
             [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
             [rewrite-clj.reader :as reader])
-  (:import (java.io File FileNotFoundException PushbackReader)))
+  (:import (java.io File FileNotFoundException)))
 
 (defn- update-file
   "Reads file as a string, calls f on the string plus any args, then
@@ -285,7 +285,7 @@
 (defn replace-ns-symbol-in-source-files
   "Replaces all occurrences of the old name with the new name in
   all Clojure source files found in dirs."
-  [old-sym new-sym source-path extension dirs watermark]
+  [old-sym new-sym extension dirs watermark]
   (p/pmap
    (fn [file]
      (->> (str file)
@@ -306,4 +306,4 @@
   sure you have a backup or version control."
   [old-sym new-sym source-path extension dirs watermark]
   (move-ns-file old-sym new-sym extension source-path)
-  (replace-ns-symbol-in-source-files old-sym new-sym source-path extension dirs watermark))
+  (replace-ns-symbol-in-source-files old-sym new-sym extension dirs watermark))
