@@ -14,7 +14,7 @@ Use it if you have dependency conflicts and don't care to solve them. In **unres
 
 ## Usage
 
-MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.1"]` into the `:plugins` vector of your project.clj.
+MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.1"]` into the `:plugins` vector of your project.clj. You can also use it directly not as a leiningen plugin, see [conjure-deps](https://github.com/Olical/conjure-deps) for an example.
 
 Mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:inline-dep` meta tag. For example:
 
