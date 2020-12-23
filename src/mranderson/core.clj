@@ -213,7 +213,7 @@
                               (mapv fs/file))]
     (u/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
     (u/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
-    (u/debug "   modified namespace prefix: " repl-prefix)
+    (u/debug "    modified namespace prefix: " repl-prefix)
     (u/debug "    src path: " src-path)
     (u/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
     (u/debug "    all dirs: " all-deps-dirs)

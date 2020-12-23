@@ -242,7 +242,7 @@
   returns modified source as a string.
 
   Splits the source file, parses the ns macro if found to do all the necessary
-  transformations. Works on the body of namepsace as text as simpler transformations
+  transformations. Works on the body of namespace as text as simpler transformations
   are needed. When done puts the ns form and body back together."
   [content old-sym new-sym watermark extension-of-moved file-ext]
   (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
