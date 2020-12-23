@@ -247,7 +247,8 @@
   [content old-sym new-sym watermark extension-of-moved file-ext]
   (let [[ns-loc source-sans-ns] (split-ns-form-ns-body content)
         opposite-platform       (util/platform-comp (util/extension->platform extension-of-moved))
-        [replaced-nodes ns-loc] (or (and (= ".cljc" file-ext)
+        [replaced-nodes ns-loc] (or (and ns-loc
+                                         (= ".cljc" file-ext)
                                          opposite-platform
                                          (find-and-replace-platform-specific-subforms opposite-platform ns-loc))
                                     [[] ns-loc])
