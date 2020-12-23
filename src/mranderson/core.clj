@@ -241,13 +241,45 @@
             ;; remove old file
             (fs/delete old-path)))))))
 
+(defn- remove-invalid-duplicates!
+  "See issue #44. Some artifacts package duplicate files in weird locations
+   (e.g. riddley has `riddley.compiler` in the root of the package) which
+   causes a mismatch of expectations when moving files, resulting in
+   exceptions."
+  [srcdeps clj-files]
+  (let [by-ns (group-by
+                #(->> (fs/file srcdeps %)
+                      (read-file-ns-decl)
+                      (second))
+                clj-files)]
+    (mapcat
+      (fn [[nspace files]]
+        (if (and nspace (next files))
+          ;; A namespace has been duplicated, so we need to find the files that
+          ;; actually exist. There might be more than one file, in case of
+          ;; CLJ/CLJS duplication.
+          (let [expected-prefix (u/sym->file-name nspace)
+                match? #{(str expected-prefix ".clj")
+                         (str expected-prefix ".cljs")
+                         (str expected-prefix ".cljc")}]
+            (doseq [to-delete (remove match? files)]
+              (u/warn "  removing duplicated file with namespace mismatch:" to-delete)
+              (.delete (fs/file srcdeps to-delete)))
+            (filter match? files))
+          ;; Only one file means nothing to do (but it might still be in the
+          ;; wrong place).
+          files))
+      by-ns)))
+
 (defn- unzip-artifact! [{:keys [srcdeps]} {:keys [src-path branch]} dep]
   (let [art-name         (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version      (str "v" (-> dep second (str/replace "." "v")))
-        clj-files        (doall (unzip (-> dep meta :file) srcdeps))
+        _                (u/info "unzipping [" art-name-cleaned " [" art-version "]]")
+        clj-files        (->> (unzip (-> dep meta :file) srcdeps)
+                              (remove-invalid-duplicates! srcdeps)
+                              (doall))
         clj-dirs         (u/clj-files->dirs srcdeps clj-files)]
-    (u/info "unzipping [" art-name-cleaned " [" art-version "]]")
     (u/debug (format "resolving transitive dependencies for %s:" art-name))
     [{:art-name-cleaned art-name-cleaned
       :art-version      art-version
