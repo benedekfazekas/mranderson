@@ -99,6 +99,10 @@
 
 (def ex-seven-cljs "(ns example.seven)")
 
+(def ex-data-readers
+  "{xml/ns clojure.data.xml.name/uri-symbol
+ xml/element clojure.data.xml.node/tagged-element}")
+
 (def medley-user-example
   "(ns example.user.medley
  (:require [medley.core :as medley]))")
@@ -159,6 +163,7 @@
         file-cljc     (create-source-file! (io/file example-dir "cross.cljc") ex-cljc)
         file-seven-clj  (create-source-file! (io/file example-dir "seven.clj") ex-seven-clj)
         file-seven-cljs (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
+        file-data-readers (create-source-file! (io/file example-dir "data_readers.cljc") ex-data-readers)
         medley-dir   (io/file src-dir "medley")
         file-medley  (create-source-file! (io/file medley-dir "core.clj") medley-stub)
         file-medley-user (create-source-file! (io/file example-dir "user" "medley.clj") medley-user-example)
@@ -202,6 +207,8 @@
               "type of occurence is retained if keyword")
         (t/is (re-find #"\[example\.b\s*\[foo\]\s*\[bar\]\]" (slurp file-two))
               "prefixes should be replaced")
+        (t/is (= ex-data-readers (slurp file-data-readers))
+              "cljc file w/o ns macro is unchanged")
         (t/is (= ex-edn (slurp file-edn))
               "clj file wo/ ns macro is unchanged"))
 
