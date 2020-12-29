@@ -232,9 +232,9 @@
             (move/replace-ns-symbol-in-source-files old-ns new-ns (u/file->extension (str clj-file)) project-source-dirs nil)))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
-          (let [old-path (str "target/srcdeps/" clj-file)
+          (let [old-path (fs/file srcdeps clj-file)
                 new-path (str (u/sym->file-name pprefix) "/" art-name-cleaned "/" art-version "/" clj-file)]
-            (fs/copy+ old-path (str "target/srcdeps/" new-path))
+            (fs/copy+ old-path (fs/file srcdeps new-path))
             ;; replace occurrences of file path references
             (doseq [file (u/clojure-source-files [srcdeps])]
               (update-path-in-file file clj-file new-path))
