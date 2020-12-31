@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- [Fix [#44](https://github.com/benedekfazekas/mranderson/issues/44)] Ignore invalid duplicates where file location does not match namespace declaration -- thanks @xsc
+- Fix NPE when trying to process cljc file without a namespace declaration
+
+### Changes
+
+- minimum leining version upgraded to 2.9.1
+- some internal improvements: tests added, kaocha added as test runner
+
 ## 0.5.1
 
 ### Bug fixes

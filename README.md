@@ -213,25 +213,9 @@ Leiningen 2.9.1 or above. For MrAnderson to work, does not mean your project is 
 - [iced-nrepl](https://github.com/liquidz/iced-nrepl)
 - [conjure](https://github.com/Olical/conjure) via [conjure-deps](https://github.com/Olical/conjure-deps) -- uses MrAnderson directly, not as a `leiningen` plugin
 
-### Libraries that work with MrAnderson
-
-Here is a list of libraries (with specific versions) that MrAnderson can inline.
-
-TODO
-
-### Libraries that MrAnderson chokes on (and why)
-
-Here is a list of libraries that MrAnderson has problems with. This does not mean those libraries do anything wrong it is more likely MrAnderson does not understand something they are doing. Hopefully it will some day.
-
-TODO
-
 ## Related project
 
 A really nice wrapper of mranderson can be found [here](https://github.com/xsc/lein-isolate).
-
-## Future plans (maybe create issues rather)
-
-TODO
 
 ## Credits
 
@@ -242,7 +226,7 @@ TODO
 
 ## License
 
-Copyright © 2014-2019 Benedek Fazekas
+Copyright © 2014-2021 Benedek Fazekas
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
