@@ -2,7 +2,7 @@
   (:require [mranderson.test :refer [with-mranderson]]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.test :refer :all]))
+            [clojure.test :refer [deftest testing is]]))
 
 ;; ## Fixtures
 

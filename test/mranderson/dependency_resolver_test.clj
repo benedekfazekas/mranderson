@@ -18,7 +18,7 @@
 (def example-dep-transient-cljs
   '[[cljfmt "0.6.3"]])
 
-(defn assert-file-meta [dep level]
+(defn assert-file-meta [dep _level]
   (t/is (-> dep meta :file) (format "%s does not have file meta info" dep)))
 
 (t/deftest expands-single-dep-into-unresolved-tree

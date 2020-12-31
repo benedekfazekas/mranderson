@@ -9,7 +9,7 @@
 
 ### Changes
 
-- minimum leining version upgraded to 2.9.1
+- minimum leiningen version upgraded to 2.9.1
 - some internal improvements: tests added, kaocha added as test runner
 
 ## 0.5.1

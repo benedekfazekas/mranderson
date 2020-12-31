@@ -103,6 +103,10 @@
   "{xml/ns clojure.data.xml.name/uri-symbol
  xml/element clojure.data.xml.node/tagged-element}")
 
+(def ex-data-readers-expected
+  "{xml/ns clojure.data.xml.name/uri-symbol
+ xml/element clojure.moved.data.xml.node/tagged-element}")
+
 (def medley-user-example
   "(ns example.user.medley
  (:require [medley.core :as medley]))")
@@ -161,88 +165,91 @@
         new-file-six  (io/file example-dir "prefix" "with_dash" "six.clj")
         file-edn      (create-source-file! (io/file example-dir "edn.clj") ex-edn)
         file-cljc     (create-source-file! (io/file example-dir "cross.cljc") ex-cljc)
-        file-seven-clj  (create-source-file! (io/file example-dir "seven.clj") ex-seven-clj)
-        file-seven-cljs (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
         file-data-readers (create-source-file! (io/file example-dir "data_readers.cljc") ex-data-readers)
         medley-dir   (io/file src-dir "medley")
-        file-medley  (create-source-file! (io/file medley-dir "core.clj") medley-stub)
         file-medley-user (create-source-file! (io/file example-dir "user" "medley.clj") medley-user-example)
-        file-eight   (create-source-file! (io/file example-dir "eight.clj") example-eight)
-        file-nine   (create-source-file! (io/file example-dir "nine.clj") example-nine)]
+        file-nine    (create-source-file! (io/file example-dir "nine.clj") example-nine)
+        file-three-last-modified (.lastModified file-three)]
+    (create-source-file! (io/file example-dir "seven.clj") ex-seven-clj)
+    (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
+    (create-source-file! (io/file medley-dir "core.clj") medley-stub)
+    (create-source-file! (io/file example-dir "eight.clj") example-eight)
 
-    (let [file-three-last-modified (.lastModified file-three)]
+    (Thread/sleep 1500) ;; ensure file timestamps are different
+    (t/testing "move ns simple case, no dash, no deftype, defrecord"
+      (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir] nil)
 
-      (Thread/sleep 1500) ;; ensure file timestamps are different
-      (t/testing "move ns simple case, no dash, no deftype, defrecord"
-        (sut/move-ns 'example.a.four 'example.b.four src-dir ".clj" [src-dir] nil)
+      ;; (println "affected after move")
+      ;; (doseq [a [file-one file-two new-file-four]]
+      ;;   (println (.getAbsolutePath a))
+      ;;   (prn (slurp a)))
+      ;; (println "unaffected after move")
+      ;; (doseq [a [file-three file-edn]]
+      ;;   (println (.getAbsolutePath a))
+      ;;   (prn (slurp a)))
 
-        ;; (println "affected after move")
-        ;; (doseq [a [file-one file-two new-file-four]]
-        ;;   (println (.getAbsolutePath a))
-        ;;   (prn (slurp a)))
-        ;; (println "unaffected after move")
-        ;; (doseq [a [file-three file-edn]]
-        ;;   (println (.getAbsolutePath a))
-        ;;   (prn (slurp a)))
+      (t/is (.exists new-file-four)
+            "new file should exist")
+      (t/is (not (.exists old-file-four))
+            "old file should not exist")
+      (t/is (not (.exists (.getParentFile old-file-four)))
+            "old empty directory should not exist")
+      (t/is (= file-three-last-modified (.lastModified file-three))
+            "unaffected file should not have been modified")
+      (t/is (not-any? #(.contains (slurp %) "example.a.four")
+                      [file-one file-two file-three new-file-four])
+            "affected files should not refer to old ns")
+      (t/is (.contains (slurp file-one) "(example.b.four/foo)")
+            "file with a reference to ns in body should refer with a symbol")
+      (t/is (every? #(.contains (slurp %) "example.b.four")
+                    [file-one file-two new-file-four])
+            "affected files should refer to new ns")
+      (t/is (= 9 (count (re-seq #"example.b.four" (slurp file-two))))
+            "all occurances of old ns should be replace with new")
+      (t/is (re-find #"\(:example.b.four/" (slurp file-one))
+            "type of occurence is retained if keyword")
+      (t/is (re-find #"\[example\.b\s*\[foo\]\s*\[bar\]\]" (slurp file-two))
+            "prefixes should be replaced")
+      (t/is (= ex-data-readers (slurp file-data-readers))
+            "cljc file w/o ns macro is unchanged")
+      (t/is (= ex-edn (slurp file-edn))
+            "clj file wo/ ns macro is unchanged"))
 
-        (t/is (.exists new-file-four)
-              "new file should exist")
-        (t/is (not (.exists old-file-four))
-              "old file should not exist")
-        (t/is (not (.exists (.getParentFile old-file-four)))
-              "old empty directory should not exist")
-        (t/is (= file-three-last-modified (.lastModified file-three))
-              "unaffected file should not have been modified")
-        (t/is (not-any? #(.contains (slurp %) "example.a.four")
-                        [file-one file-two file-three new-file-four])
-              "affected files should not refer to old ns")
-        (t/is (.contains (slurp file-one) "(example.b.four/foo)")
-              "file with a reference to ns in body should refer with a symbol")
-        (t/is (every? #(.contains (slurp %) "example.b.four")
-                      [file-one file-two new-file-four])
-              "affected files should refer to new ns")
-        (t/is (= 9 (count (re-seq #"example.b.four" (slurp file-two))))
-              "all occurances of old ns should be replace with new")
-        (t/is (re-find #"\(:example.b.four/" (slurp file-one))
-              "type of occurence is retained if keyword")
-        (t/is (re-find #"\[example\.b\s*\[foo\]\s*\[bar\]\]" (slurp file-two))
-              "prefixes should be replaced")
-        (t/is (= ex-data-readers (slurp file-data-readers))
-              "cljc file w/o ns macro is unchanged")
-        (t/is (= ex-edn (slurp file-edn))
-              "clj file wo/ ns macro is unchanged"))
+    (t/testing "testing import deftype no dash, dash in the prefix"
+      (sut/move-ns 'example.eight 'with-dash.example.eight src-dir ".clj" [src-dir] nil)
 
-      (t/testing "testing import deftype no dash, dash in the prefix"
-        (sut/move-ns 'example.eight 'with-dash.example.eight src-dir ".clj" [src-dir] nil)
+      (t/is (= (slurp file-nine) example-nine-expected)))
 
-        (t/is (= (slurp file-nine) example-nine-expected)))
+    (t/testing "move ns with dash, deftype, defrecord, import"
+      (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir] :inlined)
 
-      (t/testing "move ns with dash, deftype, defrecord, import"
-        (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir] :inlined)
+      ;; (println "affected after move")
+      ;; (doseq [a [file-three file-five new-file-six new-file-four]]
+      ;;   (println (.getAbsolutePath a))
+      ;;   (prn (slurp a)))
 
-        ;; (println "affected after move")
-        ;; (doseq [a [file-three file-five new-file-six new-file-four]]
-        ;;   (println (.getAbsolutePath a))
-        ;;   (prn (slurp a)))
-
-        (t/is (.exists new-file-six)
-              "new file should exist")
-        (t/is (not (.exists old-file-six))
-              "old file should not exist")
-        (t/is (not-any? #(.contains (slurp %) "example.with_dash.six")
-                        [file-five file-three])
-              "affected files should not refer to old ns in imports or body")
-        (t/is (every? #(.contains (slurp %) "example.prefix.with_dash.six")
+      (t/is (.exists new-file-six)
+            "new file should exist")
+      (t/is (not (.exists old-file-six))
+            "old file should not exist")
+      (t/is (not-any? #(.contains (slurp %) "example.with_dash.six")
                       [file-five file-three])
-              "affected files should refer to new ns"))
+            "affected files should not refer to old ns in imports or body")
+      (t/is (every? #(.contains (slurp %) "example.prefix.with_dash.six")
+                    [file-five file-three])
+            "affected files should refer to new ns"))
 
-      (t/testing "testing cljc file using :clj/cljs macros in require depending on same ns in clj and cljs"
-        (sut/move-ns 'example.seven 'example.clj.seven src-dir ".clj" [src-dir] nil)
-        (sut/move-ns 'example.seven 'example.cljs.seven src-dir ".cljs" [src-dir] nil)
+    (t/testing "testing cljc file using :clj/cljs macros in require depending on same ns in clj and cljs"
+      (sut/move-ns 'example.seven 'example.clj.seven src-dir ".clj" [src-dir] nil)
+      (sut/move-ns 'example.seven 'example.cljs.seven src-dir ".cljs" [src-dir] nil)
 
-        (t/is (= (slurp file-cljc) ex-cljc-expected)))
+      (t/is (= (slurp file-cljc) ex-cljc-expected)))
 
-      (t/testing "testing alias is first section of two section namespace"
-        (sut/move-ns 'medley.core 'moved.medley.core src-dir ".clj" [src-dir] :inlined)
+    (t/testing "testing alias is first section of two section namespace"
+      (sut/move-ns 'medley.core 'moved.medley.core src-dir ".clj" [src-dir] :inlined)
 
-        (t/is (= (slurp file-medley-user) medley-user-expected))))))
+      (t/is (= (slurp file-medley-user) medley-user-expected)))
+    (t/testing "testing cljc file without ns macro, with a replacement"
+      (create-source-file! (io/file (io/file temp-dir "src" "clojure" "data" "xml") "node.clj") "(ns clojure.data.xml.node)")
+      (sut/move-ns 'clojure.data.xml.node 'clojure.moved.data.xml.node src-dir ".clj" [src-dir] nil)
+      (t/is (= (slurp file-data-readers) ex-data-readers-expected)))))

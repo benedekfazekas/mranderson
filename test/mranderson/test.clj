@@ -1,8 +1,7 @@
 (ns mranderson.test
   (:require [mranderson.core :refer [mranderson]]
             [me.raynes.fs :as fs]
-            [clojure.java.io :as io]
-            [clojure.test :as t])
+            [clojure.java.io :as io])
   (:import (java.io File)))
 
 ;; ## Fixtures
@@ -76,8 +75,8 @@
     opts))
 
 (defn- project->paths
-  [{:keys [^File working-directory prefix]}]
   "Convert the given project map into a paths map for mranderson."
+  [{:keys [^File working-directory prefix]}]
   {:src-path        (io/file working-directory prefix)
    :parent-clj-dirs []
    :branch          []})
