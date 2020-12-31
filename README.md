@@ -1,4 +1,5 @@
 [![CircleCI](https://circleci.com/gh/benedekfazekas/mranderson/tree/master.svg?style=svg)](https://circleci.com/gh/benedekfazekas/mranderson/tree/master)
+[![codecov](https://codecov.io/gh/benedekfazekas/mranderson/branch/master/graph/badge.svg?token=St3R9M1IgF)](https://codecov.io/gh/benedekfazekas/mranderson)
 [![Clojars Project](https://img.shields.io/clojars/v/thomasa/mranderson.svg)](https://clojars.org/thomasa/mranderson)
 [![cljdoc badge](https://cljdoc.org/badge/thomasa/mranderson)](https://cljdoc.org/d/thomasa/mranderson/CURRENT)
 

@@ -1,8 +1,6 @@
-# Clojure CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-clojure/ for more details
-#
-version: 2
+version: 2.1
+orbs:
+  codecov: codecov/codecov@1.0.4
 jobs:
   build:
     docker:
@@ -20,6 +18,7 @@ jobs:
       LEIN_ROOT: "true"
       # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
+      CODECOV_TOKEN: "40c949dc-911e-457a-b249-bdd06b9ff30c"
 
     steps:
       - checkout
@@ -40,3 +39,7 @@ jobs:
 
       # run tests!
       - run: lein test
+      # coverage
+      - run: lein kaocha-coverage --codecov
+      - codecov/upload:
+          file: target/coverage/codecov.json
