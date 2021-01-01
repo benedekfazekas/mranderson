@@ -18,6 +18,7 @@ jobs:
       LEIN_ROOT: "true"
       # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
+      CODECOV_TOKEN: "2d87bba9-b8bd-44bc-aadb-72c4d81ce01f"
 
     steps:
       - checkout
