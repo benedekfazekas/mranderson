@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.2
+
 ### Bug fixes
 
 - [Fix [#44](https://github.com/benedekfazekas/mranderson/issues/44)] Ignore invalid duplicates where file location does not match namespace declaration -- thanks @xsc

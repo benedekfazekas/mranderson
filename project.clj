@@ -1,4 +1,4 @@
-(defproject thomasa/mranderson "0.5.2-SNAPSHOT"
+(defproject thomasa/mranderson "0.5.2"
   :description "Dependency inlining and shadowing tool."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"
