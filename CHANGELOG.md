@@ -10,7 +10,7 @@
 ### Changes
 
 - minimum leiningen version upgraded to 2.9.1
-- some internal improvements: tests added, kaocha added as test runner
+- some internal improvements: tests added, kaocha added as test runner, codecov added to CI
 
 ## 0.5.1
 
