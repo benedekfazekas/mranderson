@@ -1,17 +1,17 @@
-(defproject thomasa/mranderson "0.5.2"
+(defproject thomasa/mranderson "0.5.3-SNAPSHOT"
   :description "Dependency inlining and shadowing tool."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :eval-in :leiningen
-  :plugins [[thomasa/mranderson "0.5.1"]]
+  :plugins [[thomasa/mranderson "0.5.2"]]
   :java-source-paths ["java-src"]
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
   :dependencies [^:inline-dep [com.cemerick/pomegranate "0.4.0"]
                  ^:inline-dep [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ^:inline-dep [me.raynes/fs "1.4.6"]
-                 ^:inline-dep [rewrite-clj "0.6.1"]
+                 ^:inline-dep [rewrite-clj o"0.6.1"]
                  ^:inline-dep [parallel "0.10"]
                  [com.googlecode.jarjar/jarjar "1.3"]]
   :mranderson {:project-prefix "mranderson.inlined"}
