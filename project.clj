@@ -11,7 +11,7 @@
   :dependencies [^:inline-dep [com.cemerick/pomegranate "0.4.0"]
                  ^:inline-dep [org.clojure/tools.namespace "0.3.0-alpha3"]
                  ^:inline-dep [me.raynes/fs "1.4.6"]
-                 ^:inline-dep [rewrite-clj o"0.6.1"]
+                 ^:inline-dep [rewrite-clj "0.6.1"]
                  ^:inline-dep [parallel "0.10"]
                  [com.googlecode.jarjar/jarjar "1.3"]]
   :mranderson {:project-prefix "mranderson.inlined"}
