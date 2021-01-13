@@ -8,6 +8,15 @@
            [mranderson.util JjPackageRemapper JjMainProcessor]
            [com.tonicsystems.jarjar.ext_util StandaloneJarProcessor]))
 
+(defn info [& args]
+  (apply lein-main/info args))
+
+(defn warn [& args]
+  (apply lein-main/warn args))
+
+(defn debug [& args]
+  (apply lein-main/debug args))
+
 (defn clojure-source-files-relative
   ([dirs excl-dir]
      (let [excl-dirs (when excl-dir (map #(str % "/" excl-dir) dirs))]
@@ -77,8 +86,7 @@
   []
   (reduce #(->> (str/split (str %2) #"/")
                 (drop 2)
-                (take 2)
-                (str/join ".")
+                first
                 ((partial conj %1))) #{} (class-files)))
 
 (defn clean-name-version
@@ -98,15 +106,6 @@
     (. rule setPattern (str java-dir ".**"))
     (. rule setResult (str name-version "." java-dir ".@1"))
     rule))
-
-(defn warn [& args]
-  (apply lein-main/warn args))
-
-(defn info [& args]
-  (apply lein-main/info args))
-
-(defn debug [& args]
-  (apply lein-main/debug args))
 
 (defn apply-jarjar! [pname pversion]
   (let [java-dirs (java-class-dirs)

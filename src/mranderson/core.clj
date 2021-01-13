@@ -145,10 +145,7 @@
 
 (defn- replace-class-deps! []
   (u/info "deleting directories with class files in target/srcdeps...")
-  (doseq [class-dir (->> (u/java-class-dirs)
-                         (map #(str/split % #"\."))
-                         (map first)
-                         set)]
+  (doseq [class-dir (u/java-class-dirs)]
     (fs/delete-dir (str "target/srcdeps/" class-dir))
     (u/info "  " class-dir " deleted"))
   (u/info "unzipping repackaged class-deps.jar into target/srcdeps")
