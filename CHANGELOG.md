@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- [fix [#47](https://github.com/benedekfazekas/mranderson/issues/47)] Error when inlining cljfmt 0.7
+
 ## 0.5.2
 
 ### Bug fixes
