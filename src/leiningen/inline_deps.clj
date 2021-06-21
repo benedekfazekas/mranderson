@@ -5,8 +5,14 @@
             [mranderson.util :as u])
   (:import [java.util UUID]))
 
-(defn lookup-opt [opt-key opts]
-  (second (drop-while #(not= % opt-key) opts)))
+(defn- lookup-opt
+  ([opt-key cli-opts project-opts]
+   (lookup-opt opt-key cli-opts project-opts nil))
+
+  ([opt-key cli-opts project-opts not-found]
+   (if-let [cli-subseq (seq (drop-while #(not= % opt-key) cli-opts))]
+     (second cli-subseq)
+     (get project-opts opt-key not-found))))
 
 (defn- generate-default-project-prefix []
   (str "mranderson" (->  (UUID/randomUUID)
@@ -15,17 +21,14 @@
 
 (defn- lein-project->ctx
   [{:keys [root target-path name version mranderson]} args]
-  (let [opts                        (map #(edn/read-string %) args)
-        project-prefix-opt          (lookup-opt :project-prefix opts)
-        project-prefix              (or (and project-prefix-opt (clojure.core/name project-prefix-opt))
-                                        (and (nil? project-prefix-opt) (:project-prefix mranderson))
-                                        (generate-default-project-prefix))
-        skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage opts)
-        prefix-exclusions           (lookup-opt :prefix-exclusions opts)
+  (let [cli-opts                    (map edn/read-string args)
+        project-prefix              (some-> (lookup-opt :project-prefix cli-opts mranderson
+                                                        (generate-default-project-prefix))
+                                            clojure.core/name)
+        skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage cli-opts mranderson)
+        prefix-exclusions           (lookup-opt :prefix-exclusions cli-opts mranderson)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
-        project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))
-        unresolved-tree-opt         (lookup-opt :unresolved-tree opts)
-        unresolved-tree             (or unresolved-tree-opt (and (nil? unresolved-tree-opt) (:unresolved-tree mranderson)))]
+        project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))]
     (u/debug "skip repackage" skip-repackage-java-classes)
     (u/debug "project mranderson" (prn-str mranderson))
     (u/info "project prefix: " project-prefix)
@@ -36,10 +39,10 @@
      :srcdeps                     srcdeps-relative
      :prefix-exclusions           prefix-exclusions
      :project-source-dirs         project-source-dirs
-     :unresolved-tree             unresolved-tree
-     :overrides                   (:overrides mranderson)
-     :expositions                 (:expositions mranderson)
-     :watermark                   (:watermark mranderson :mranderson/inlined)}))
+     :unresolved-tree             (lookup-opt :unresolved-tree cli-opts mranderson)
+     :overrides                   (lookup-opt :overrides cli-opts mranderson)
+     :expositions                 (lookup-opt :expositions cli-opts mranderson)
+     :watermark                   (lookup-opt :watermark cli-opts mranderson :mranderson/inlined)}))
 
 (defn- initial-paths [target-path pprefix]
   {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
