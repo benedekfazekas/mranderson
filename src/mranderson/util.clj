@@ -4,9 +4,9 @@
             [leiningen.core.main :as lein-main]
             [clojure.set :as s])
   (:import [java.io File]
-           [com.tonicsystems.jarjar Rule]
+           [org.pantsbuild.jarjar Rule]
            [mranderson.util JjPackageRemapper JjMainProcessor]
-           [com.tonicsystems.jarjar.ext_util StandaloneJarProcessor]))
+           [org.pantsbuild.jarjar.util StandaloneJarProcessor]))
 
 (defn info [& args]
   (apply lein-main/info args))
