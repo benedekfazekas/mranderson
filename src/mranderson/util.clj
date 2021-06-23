@@ -156,9 +156,11 @@
   (->> (sort dirs)
        (reduce (fn [ds dir]
                  (let [last-dir (last ds)]
-                   (if (and last-dir (str/includes? dir last-dir))
+                   (if (and last-dir (str/includes? (str dir File/separator)
+                                                    (str last-dir File/separator)))
                      ds
-                     (conj ds dir)))) [])))
+                     (conj ds dir))))
+               [])))
 
 (defn clj-files->dirs
   [prefix clj-files]
