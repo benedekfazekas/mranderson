@@ -192,15 +192,17 @@ Again: in the **resolved tree** mode no transient dependency hygiene is applied.
 
 ### Further config options
 
-| Option                   | Default                        | CLI or project.clj    | Description | Example |
-|--------------------------|--------------------------------|-----------------------|-------------|---------|
-| project-prefix           | mranderson{rnd}                | CLI                   | project pecific prefix to use when shadowing            | `lein inline-deps :project-prefix cider.inlined-deps` |
-| skip-javaclass-repackage | false                          | CLI                   | If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein inline-deps :skip-javaclass-repackage true`        |
-| prefix-exclusions        | empty list                     | CLI                   | List of prefixes which should not be processed in imports            |  `lein inline-deps :prefix-exclusions "[\"classlojure\"]"`  |
-| watermark                | :mranderson/inlined            | project.clj           | When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
-| unresolved-tree          | false                          | CLI, project.clj      | Switch between **unresolved tree** and **resolved tree** mode | `lein inline-deps :unresolved-tree true` |
-| overrides                | empty list                     | project.clj           | Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
-| expositions              | empty list                     | project.clj           | Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
+All the options can be provided via CLI or the project file.
+
+| Option                   | Default                        |  Description | Example |
+|--------------------------|--------------------------------|-------------|---------|
+| project-prefix           | mranderson{rnd}                |  project pecific prefix to use when shadowing            | `lein inline-deps :project-prefix cider.inlined-deps` |
+| skip-javaclass-repackage | false                          |  If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein inline-deps :skip-javaclass-repackage true`        |
+| prefix-exclusions        | empty list                     |  List of prefixes which should not be processed in imports            |  `lein inline-deps :prefix-exclusions "[\"classlojure\"]"`  |
+| watermark                | :mranderson/inlined            |  When processing namespaces in dependencies MrAnderson marks them with a meta so inlined namespaces can be identified. Helpful for tools like [cljdoc](https://cljdoc.org)            | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
+| unresolved-tree          | false                          |  Switch between **unresolved tree** and **resolved tree** mode | `lein inline-deps :unresolved-tree true` |
+| overrides                | empty list                     |  Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
+| expositions              | empty list                     |  Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 
 ## Prerequisites
 
