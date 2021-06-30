@@ -1,6 +1,7 @@
 (ns mranderson.util
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
+            [me.raynes.fs :as fs]
             [leiningen.core.main :as lein-main]
             [clojure.set :as s])
   (:import [java.io File]
@@ -156,7 +157,7 @@
   (->> (sort dirs)
        (reduce (fn [ds dir]
                  (let [last-dir (last ds)]
-                   (if (and last-dir (str/includes? dir last-dir))
+                   (if (and last-dir (fs/child-of? last-dir dir))
                      ds
                      (conj ds dir)))) [])))
 
