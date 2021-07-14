@@ -170,9 +170,7 @@
                      (remove nil?)
                      doall)
         class-names (map u/class-file->fully-qualified-name (u/class-files))
-        package-names (->> class-names
-                           (map u/class-name->package-name)
-                           set)
+        package-names (u/->package-names class-names)
         clj-files (filter-clj-files imports package-names)]
     (when (seq clj-files)
       (u/info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))

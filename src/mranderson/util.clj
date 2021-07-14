@@ -77,10 +77,18 @@
        (drop 2)
        (str/join ".")))
 
-(defn class-name->package-name [class-name]
+(defn- class-name->package-name [class-name]
   (->> (str/split class-name #"\.")
        butlast
        (str/join ".")))
+
+(def ^:private not-to-prefix?
+  #{"clojure.lang"})
+
+(defn ->package-names [class-names]
+  (->> (map class-name->package-name class-names)
+       (remove not-to-prefix?)
+       set))
 
 (defn java-class-dirs
   "lists subdirs of target/srcdeps which contain .class files"
