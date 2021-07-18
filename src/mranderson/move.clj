@@ -40,7 +40,7 @@
     (when-not (= old new)
       (spit file new))))
 
-(defn- sym->file
+(defn- sym->file ^File
   [path sym extension]
   (io/file path (str (util/sym->file-name sym) extension)))
 

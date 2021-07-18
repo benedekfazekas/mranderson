@@ -61,8 +61,8 @@
 (defn class-files []
   (->> "target/srcdeps"
        io/file
-       (#(.listFiles %))
-       (filter #(.isDirectory %))
+       (#(.listFiles ^File %))
+       (filter #(.isDirectory ^File %))
        (mapcat file-seq)
        (filter (fn [^File file]
                  (and (.isFile file)
@@ -125,7 +125,7 @@
     (info (format "prefixing %s in target/class-deps.jar with %s" java-dirs name-version))
     (StandaloneJarProcessor/run jar-file jar-file processor)))
 
-(defn remove-2parents [file]
+(defn remove-2parents ^String [file]
   (->> (str/split (str file) #"/")
        (drop 2)
        (str/join "/")))

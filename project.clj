@@ -17,6 +17,9 @@
   :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]
                                   [leiningen-core "2.9.1"]]}
+             :eastwood {:dependencies [[org.clojure/clojure "1.10.3"]]
+                        :plugins      [[jonase/eastwood "0.9.1"]]
+                        :eastwood     {:exclude-linters [:no-ns-form-found]}}
              :kaocha {:dependencies [[lambdaisland/kaocha "0.0-418"]
                                      [lambdaisland/kaocha-cloverage "0.0-32"]]}}
   :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]

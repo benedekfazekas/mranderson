@@ -36,10 +36,10 @@
        (io/copy (.getInputStream zip entry) f))
      (->> entries
           (filter entry-pred)
-          (map #(.getName %))
-          (filter #(or (.endsWith % ".clj")
-                       (.endsWith % ".cljc")
-                       (.endsWith % ".cljs")))))))
+          (map #(.getName ^ZipEntry %))
+          (filter #(or (.endsWith ^String % ".clj")
+                       (.endsWith ^String % ".cljc")
+                       (.endsWith ^String % ".cljs")))))))
 
 (defn- cljfile->prefix [clj-file]
   (->> (str/split clj-file #"/")
@@ -86,7 +86,7 @@
     (when-not (= old new)
       (spit file new))))
 
-(defn- import-fragment-left [clj-source]
+(defn- import-fragment-left [^String clj-source]
   (let [index-of-import (.indexOf clj-source ":import")]
     (when (> index-of-import -1)
       (drop (loop [ns-decl-fragment (reverse (take index-of-import clj-source))

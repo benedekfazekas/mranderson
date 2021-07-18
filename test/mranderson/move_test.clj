@@ -141,7 +141,7 @@
     (.mkdirs temp-file)
     temp-file))
 
-(defn- create-source-file! [^File file ^String content]
+(defn- create-source-file! ^File [^File file ^String content]
   (.delete file)
   (.mkdirs (.getParentFile file))
   (.createNewFile file)
