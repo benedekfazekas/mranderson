@@ -4,7 +4,7 @@
 
 (defn- find-gen-class-ns [found file]
   (let [ns-decl (read-file-ns-decl file)]
-    (if (.contains (apply str ns-decl) ":gen-class")
+    (if (.contains ^String (apply str ns-decl) ":gen-class")
       (conj found (-> file read-file-ns-decl second))
       found)))
 
