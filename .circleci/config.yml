@@ -39,6 +39,8 @@ jobs:
 
       # run tests!
       - run: lein test
+      # Lint
+      - run: lein with-profile +eastwood eastwood
       # coverage
       - run: lein kaocha-coverage --codecov
       - codecov/upload:
