@@ -9,9 +9,9 @@
   :javac-options ["-target" "1.6" "-source" "1.6"]
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
   :dependencies [^:inline-dep [com.cemerick/pomegranate "0.4.0"]
-                 ^:inline-dep [org.clojure/tools.namespace "0.3.0-alpha3"]
+                 ^:inline-dep [org.clojure/tools.namespace "1.1.0"]
                  ^:inline-dep [me.raynes/fs "1.4.6"]
-                 ^:inline-dep [rewrite-clj "0.6.1"]
+                 ^:inline-dep [rewrite-clj "1.0.682-alpha"]
                  ^:inline-dep [parallel "0.10"]
                  [org.pantsbuild/jarjar "1.7.2"]]
   :mranderson {:project-prefix "mranderson.inlined"}
