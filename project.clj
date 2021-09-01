@@ -1,4 +1,6 @@
-(defproject thomasa/mranderson "0.5.4-SNAPSHOT"
+(defproject thomasa/mranderson "0.5.4-i52"
+  ;; clj-tuple still fails because no package -> no prefixes. maybe got fixed later? check!
+  ;; refactor-nrepl fails because jarjar should prefix classes not packages as well
   :description "Dependency inlining and shadowing tool."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"

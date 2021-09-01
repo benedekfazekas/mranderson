@@ -147,9 +147,8 @@
       ns-loc))
 
 (defn- import? [node]
-  (when-not (#{:uneval} (b/tag node))
-    (when-let [node-sexpr (b/sexpr node)]
-      (= :import node-sexpr))))
+  (when-let [node-sexpr (and (b/sexpr-able? node) (b/sexpr node))]
+    (= :import node-sexpr)))
 
 (defn- ->new-import-node [old-sym new-sym old-node]
   (let [new-node (str/replace old-node (java-package old-sym) (java-package new-sym))]

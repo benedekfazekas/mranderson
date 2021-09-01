@@ -3,7 +3,9 @@
             [clojure.string :as str]
             [me.raynes.fs :as fs]
             [leiningen.core.main :as lein-main]
-            [clojure.set :as s])
+            [clojure.set :as s]
+            [rewrite-clj.zip :as z]
+            [rewrite-clj.node :as n])
   (:import [java.io File]
            [org.pantsbuild.jarjar Rule]
            [mranderson.util JjPackageRemapper JjMainProcessor]
@@ -167,3 +169,16 @@
        (remove str/blank?)
        (map (fn [clj-dir] (str prefix "/" clj-dir)))
        set))
+
+(defn- flatten-prefixed-import [[prefix & sexpr-tail]]
+  (-> (map (fn [import] (n/coerce (symbol (str (str prefix) "." (str import))))) sexpr-tail)
+      (interleave (repeat (n/spaces 1)))
+      n/vector-node))
+
+(defn- flatten-prefixed-import-maybe [zloc]
+  (if (z/seq? zloc)
+    (z/splice (z/edit zloc flatten-prefixed-import))
+    zloc))
+
+(defn flatten-prefixed-imports [^String ns-import-fragment]
+  [ns-import-fragment (z/root-string (z/map flatten-prefixed-import-maybe (z/of-string ns-import-fragment)))])

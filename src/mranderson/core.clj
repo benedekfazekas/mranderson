@@ -168,22 +168,23 @@
         imports (->> clj-files
                      (reduce #(conj %1 (retrieve-import srcdeps (u/remove-2parents %2))) [])
                      (remove nil?)
+                     (map #(update % 1 u/flatten-prefixed-imports))
                      doall)
         class-names (map u/class-file->fully-qualified-name (u/class-files))
         package-names (->> class-names
                            (map u/class-name->package-name)
                            set)
         clj-files (filter-clj-files imports package-names)]
+    (u/debug "      package-names" package-names)
+    (u/debug "      clj files" (str/join ":" clj-files))
     (when (seq clj-files)
       (u/info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))
       (u/debug "      class-names" class-names)
-      (u/debug "      package-names" package-names)
       (u/debug "      imports" imports)
-      (u/debug "      clj files" (str/join ":" clj-files))
       (doseq [file clj-files]
         (let [old         (slurp (fs/file file))
-              orig-import (find-orig-import imports file)
-              new-import  (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
+              [orig-import flat-import] (find-orig-import imports file)
+              new-import  (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) flat-import class-names)
               uuid        (str (UUID/randomUUID))
               new         (str/replace old orig-import uuid)
               new         (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
@@ -214,6 +215,8 @@
     (u/debug "    src path: " src-path)
     (u/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
     (u/debug "    all dirs: " all-deps-dirs)
+    (u/debug "    prefixes" prefixes)
+    (u/debug "    prefix exclusions" prefix-exclusions)
     (u/debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
     (when-not skip-repackage-java-classes
       (if (str/ends-with? (str src-path) (u/sym->file-name pprefix))
