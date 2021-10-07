@@ -12,7 +12,6 @@
                  ^:inline-dep [org.clojure/tools.namespace "1.1.0"]
                  ^:inline-dep [me.raynes/fs "1.4.6"]
                  ^:inline-dep [rewrite-clj "1.0.682-alpha"]
-                 ^:inline-dep [parallel "0.10"]
                  [org.pantsbuild/jarjar "1.7.2"]]
   :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]
