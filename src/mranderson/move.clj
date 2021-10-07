@@ -23,7 +23,6 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [mranderson.util :as util]
-            [parallel.core :as p]
             [rewrite-clj.zip :as z]
             [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
@@ -253,16 +252,16 @@
                                          (find-and-replace-platform-specific-subforms opposite-platform ns-loc))
                                     [[] ns-loc])
 
-        new-ns-form             (future (replace-in-ns-form ns-loc old-sym new-sym watermark))
-        new-source-sans-ns      (future (replace-in-source source-sans-ns old-sym new-sym))
+        new-ns-form             (replace-in-ns-form ns-loc old-sym new-sym watermark)
+        new-source-sans-ns      (replace-in-source source-sans-ns old-sym new-sym)
         new-ns-form             (if (seq replaced-nodes)
-                                  (restore-platform-specific-subforms opposite-platform replaced-nodes @new-ns-form)
-                                  @new-ns-form)]
+                                  (restore-platform-specific-subforms opposite-platform replaced-nodes new-ns-form)
+                                  new-ns-form)]
     (or
      (and
       new-ns-form
-      (str/replace @new-source-sans-ns ns-form-placeholder new-ns-form))
-     @new-source-sans-ns)))
+      (str/replace new-source-sans-ns ns-form-placeholder new-ns-form))
+     new-source-sans-ns)))
 
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
@@ -287,12 +286,12 @@
   "Replaces all occurrences of the old name with the new name in
   all Clojure source files found in dirs."
   [old-sym new-sym extension dirs watermark]
-  (p/pmap
-   (fn [file]
-     (->> (str file)
-          util/file->extension
-          (update-file file replace-ns-symbol old-sym new-sym watermark extension)))
-   (clojure-source-files dirs extension)))
+  (->> (clojure-source-files dirs extension)
+       (pmap (fn [file]
+               (->> (str file)
+                    util/file->extension
+                    (update-file file replace-ns-symbol old-sym new-sym watermark extension))))
+       (doall)))
 
 (defn move-ns
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
