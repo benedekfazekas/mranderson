@@ -252,17 +252,16 @@
                                          (find-and-replace-platform-specific-subforms opposite-platform ns-loc))
                                     [[] ns-loc])
 
-        ;; we use `delay` because the computations may not be needed, depending on the subsequent conditionals:
-        new-ns-form             (delay (replace-in-ns-form ns-loc old-sym new-sym watermark))
-        new-source-sans-ns      (delay (replace-in-source source-sans-ns old-sym new-sym))
+        new-ns-form             (replace-in-ns-form ns-loc old-sym new-sym watermark)
+        new-source-sans-ns      (replace-in-source source-sans-ns old-sym new-sym)
         new-ns-form             (if (seq replaced-nodes)
-                                  (restore-platform-specific-subforms opposite-platform replaced-nodes @new-ns-form)
-                                  @new-ns-form)]
+                                  (restore-platform-specific-subforms opposite-platform replaced-nodes new-ns-form)
+                                  new-ns-form)]
     (or
      (and
       new-ns-form
-      (str/replace @new-source-sans-ns ns-form-placeholder new-ns-form))
-     @new-source-sans-ns)))
+      (str/replace new-source-sans-ns ns-form-placeholder new-ns-form))
+     new-source-sans-ns)))
 
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
