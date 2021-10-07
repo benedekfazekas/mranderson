@@ -1,25 +1,40 @@
 version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.4
+defaults: &defaults
+  working_directory: ~/mranderson
+env_common: &env_common
+  LEIN_ROOT: "true" # we intended to run lein as root
+  CODECOV_TOKEN: "2d87bba9-b8bd-44bc-aadb-72c4d81ce01f"
+executors:
+  openjdk8:
+    docker:
+      - image: circleci/clojure:openjdk-8-lein-2.9.1-node
+    environment:
+      JVM_OPTS: -Xmx3200m # limit the maximum heap size to prevent out of memory errors
+      <<: *env_common
+    <<: *defaults
+  openjdk11:
+    docker:
+      - image: circleci/clojure:openjdk-11-lein-2.9.1-node
+    environment:
+      JVM_OPTS: -Xmx3200m --illegal-access=deny # forbid reflective access (this flag doesn't exist for JDK8 or JDK17+)
+      <<: *env_common
+    <<: *defaults
+  openjdk17:
+    docker:
+      - image: circleci/clojure:openjdk-17-lein-2.9.5-buster-node
+    environment:
+      JVM_OPTS: -Xmx3200m
+      <<: *env_common
+    <<: *defaults
 jobs:
   build:
-    docker:
-      # specify the version you desire here
-      - image: circleci/clojure:lein-2.9.1
-
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
-
-    working_directory: ~/mranderson
-
-    environment:
-      LEIN_ROOT: "true"
-      # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3200m
-      CODECOV_TOKEN: "2d87bba9-b8bd-44bc-aadb-72c4d81ce01f"
-
+    parameters:
+      jdk_version:
+        description: Version of JDK to test against
+        type: string
+    executor: << parameters.jdk_version >>
     steps:
       - checkout
 
@@ -45,3 +60,11 @@ jobs:
       - run: lein kaocha-coverage --codecov
       - codecov/upload:
           file: target/coverage/codecov.json
+workflows:
+  version: 2.1
+  ci-test-matrix:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              jdk_version: [openjdk8, openjdk11, openjdk17]
