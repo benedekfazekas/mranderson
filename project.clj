@@ -15,7 +15,7 @@
                  ^:inline-dep [org.clojure/tools.namespace "1.1.0"]
                  ^:inline-dep [me.raynes/fs "1.4.6"]
                  ^:inline-dep [rewrite-clj "1.0.682-alpha"]
-                 [org.pantsbuild/jarjar "1.7.2"]]
+                 [com.googlecode.jarjar/jarjar "1.3"]]
   :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.8.0"]
                                   [leiningen-core "2.9.1"]]}

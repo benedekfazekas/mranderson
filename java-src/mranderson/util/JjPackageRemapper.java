@@ -20,14 +20,10 @@
 
 package mranderson.util;
 
-import org.objectweb.asm.commons.Remapper;
-import org.pantsbuild.jarjar.PatternElement;
-import org.pantsbuild.jarjar.Rule;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.tonicsystems.jarjar.*;
+import com.tonicsystems.jarjar.asm.*;
+import com.tonicsystems.jarjar.asm.commons.*;
+import java.util.*;
 import java.util.regex.Pattern;
 
 public class JjPackageRemapper extends Remapper
