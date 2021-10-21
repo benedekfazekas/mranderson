@@ -8,7 +8,13 @@ cd "${BASH_SOURCE%/*}"
 
 cd ..
 lein clean
-lein with-profile -user,-dev,+plugin.mranderson/config install
+lein with-profile -user,-dev install
 
 cd .circleci/cider-nrepl
-lein with-profile -user,-dev update-in :plugins conj '[thomasa/mranderson "0.5.4-SNAPSHOT"]' -- inline-deps
+lein clean
+# Undo the patch if it was applied already:
+git checkout project.clj
+git apply ../update-mranderson.patch
+lein with-profile -user,-dev inline-deps
+# Leave `git status` clean for local development:
+git checkout project.clj
