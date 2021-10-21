@@ -9,6 +9,7 @@ cd "${BASH_SOURCE%/*}"
 cd ..
 lein clean
 lein with-profile -user,-dev install
+git submodule update --init --recursive
 
 cd .circleci/cider-nrepl
 lein clean
