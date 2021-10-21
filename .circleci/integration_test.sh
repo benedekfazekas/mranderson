@@ -8,7 +8,10 @@ cd "${BASH_SOURCE%/*}"
 
 cd ..
 lein clean
+# Install without plugin, for bootstrapping mranderson:
 lein with-profile -user,-dev install
+# Full install:
+lein with-profile -user,-dev,+mranderson-plugin,+plugin.mranderson/config install
 git submodule update --init --recursive
 
 cd .circleci/cider-nrepl
