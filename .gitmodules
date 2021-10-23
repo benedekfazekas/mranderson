@@ -1,3 +1,6 @@
 [submodule ".circleci/cider-nrepl"]
 	path = .circleci/cider-nrepl
 	url = git@github.com:clojure-emacs/cider-nrepl.git
+[submodule ".circleci/refactor-nrepl"]
+	path = .circleci/refactor-nrepl
+	url = git@github.com:clojure-emacs/refactor-nrepl.git
