@@ -1,0 +1,13 @@
+diff --git a/project.clj b/project.clj
+index 2cda6e1..5eff25c 100644
+--- a/project.clj
++++ b/project.clj
+@@ -22,7 +22,7 @@
+                 ;; :pedantic? can be problematic for certain local dev workflows:
+                 false)
+ 
+-  :plugins [[thomasa/mranderson "0.5.3"]]
++  :plugins [[thomasa/mranderson "0.5.4-SNAPSHOT"]]
+   :mranderson {:project-prefix "cider.nrepl.inlined-deps"
+                :overrides       {[mvxcvi/puget fipp] [fipp "0.6.18"]} ; only takes effect in unresolved-tree mode
+                :expositions     [[mvxcvi/puget fipp]] ; only takes effect unresolved-tree mode
