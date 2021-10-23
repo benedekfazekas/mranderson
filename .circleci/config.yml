@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
   codecov: codecov/codecov@1.0.4
+  shellcheck: circleci/shellcheck@2.2.3
 defaults: &defaults
   working_directory: ~/mranderson
 env_common: &env_common
@@ -37,6 +38,7 @@ jobs:
     executor: << parameters.jdk_version >>
     steps:
       - checkout
+      - shellcheck/install
 
       # Download and cache dependencies
       - restore_cache:
@@ -54,6 +56,8 @@ jobs:
 
       # run tests!
       - run: lein test
+      - run: "shellcheck .circleci/*.sh"
+      - run: .circleci/integration_test.sh
       # Lint
       - run: lein with-profile +eastwood eastwood
       # coverage
