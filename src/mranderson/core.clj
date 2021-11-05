@@ -288,8 +288,13 @@
       :parent-clj-dirs (map fs/file clj-dirs)}]))
 
 (defn copy-source-files
-  [source-paths target-path]
-  (fs/copy-dir (first source-paths) (str target-path "/srcdeps")))
+  ([source-paths target-path]
+   (copy-source-files source-paths target-path "srcdeps"))
+
+  ([source-paths target-path target-suffix]
+   (let [to (-> target-path (io/file target-suffix) .toString)]
+     (doseq [source-path source-paths]
+       (fs/copy-dir-into source-path to)))))
 
 (defn- mranderson-unresolved-deps!
   "Unzips and transforms files in an unresolved dependency tree."

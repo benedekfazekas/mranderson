@@ -167,3 +167,13 @@
        (remove str/blank?)
        (map (fn [clj-dir] (str prefix "/" clj-dir)))
        set))
+
+(defn determine-source-dirs [{:keys [source-paths]
+                              {:keys [included-source-paths]} :mranderson}]
+  (case included-source-paths
+    (nil :first) (take 1 source-paths)
+    :source-paths source-paths
+    (do
+      (assert (vector? included-source-paths)
+              (pr-str included-source-paths))
+      included-source-paths)))

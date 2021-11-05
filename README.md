@@ -203,6 +203,7 @@ All the options can be provided via CLI or the project file.
 | unresolved-tree          | false                          |  Switch between **unresolved tree** and **resolved tree** mode | `lein inline-deps :unresolved-tree true` |
 | overrides                | empty list                     |  Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
 | expositions              | empty list                     |  Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
+| included-source-paths    | nil                            |  Determines which of the provided `:source-paths` (not `:test-paths`!) will be inlined. If `nil` or `:first`, the first source path (typically `"src"`) will be the only one to be processed. If set to `:source-paths`, all `:source-paths` will be processed. If set a vector, that vector will be interpreted as the list of source dirs to be processed, as-is, omitting the project `:source-dirs` value. 
 
 ## Prerequisites
 
