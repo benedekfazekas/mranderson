@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## Changes
+
+- Simplify internal threading setup
+- [fix [#58](https://github.com/benedekfazekas/mranderson/issues/58)] Offer a new `:included-source-paths` option, which is described in the README.
+
 ## 0.5.3
 
 ### Bug fixes

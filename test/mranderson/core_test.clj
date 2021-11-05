@@ -1,8 +1,11 @@
 (ns mranderson.core-test
-  (:require [mranderson.test :refer [with-mranderson]]
+  (:require [mranderson.core :as sut]
+            [mranderson.test :refer [with-mranderson]]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.test :refer [deftest testing is]]))
+            [clojure.test :refer [deftest testing is]]
+            [me.raynes.fs :as fs])
+  (:import java.io.File))
 
 ;; ## Fixtures
 
@@ -65,3 +68,37 @@
                      "  (:refer-clojure :exclude [macroexpand])\n"
                      "  (:require\n"
                      "    [" ns-prefix ".riddley.v0v1v12.riddley.compiler :as cmp]))"))))))))
+
+(deftest t-copy-source-files
+  (testing "Can merge files across overlapping dirs"
+    (let [dir-a "test-resources/a"
+          dir-b "test-resources/b"
+          intermediate-dir "same-name"
+          target-dir "test-resources/c/srcdeps"
+          filename-1 "f"
+          filename-2 "g"
+          expected-1 (io/file target-dir intermediate-dir filename-1)
+          expected-2 (io/file target-dir intermediate-dir filename-2)
+          cleanup! #(fs/delete-dir (File. target-dir))]
+
+      (cleanup!)
+
+      ;; Note that both files have a different parent dir but a same intermediate dir,
+      ;; so a correct impl will merge these dirs:
+      (assert (.exists (io/file dir-a intermediate-dir filename-1)))
+      (assert (.exists (io/file dir-b intermediate-dir filename-2)))
+
+      (assert (not (.exists expected-1)))
+      (assert (not (.exists expected-2)))
+
+      (try
+        (sut/copy-source-files [dir-a dir-b]
+                               "test-resources/c")
+
+        (is (.exists expected-1)
+            (str expected-1))
+        (is (.exists expected-2)
+            (str expected-2))
+
+        (finally
+          (cleanup!))))))

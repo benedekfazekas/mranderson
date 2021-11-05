@@ -58,8 +58,8 @@
   :skip-javaclass-repackage boolean   If true Jar Jar Links won't be used to repackage java classes
   :prefix-exclusions        list      List of prefixes that should not be processed in imports
   :unresolved-tree          boolean   Enforces unresolved tree mode"
-  [{:keys [repositories dependencies source-paths target-path] :as project} & args]
-  (c/copy-source-files source-paths target-path)
+  [{:keys [repositories dependencies target-path] :as project} & args]
+  (c/copy-source-files (u/determine-source-dirs project) target-path)
   (let [{:keys [pprefix] :as ctx} (lein-project->ctx project args)
         paths                     (initial-paths target-path pprefix)]
     (c/mranderson repositories dependencies ctx paths)))
