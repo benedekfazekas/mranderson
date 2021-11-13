@@ -134,6 +134,13 @@
            with_dash.example.eight.TypeEight)
  (:require [with-dash.example.eight :as eight]))")
 
+(def tool-deps-alpha-example
+  "(ns clojure.tools.deps.alpha)
+   (load \"/clojure/tools/deps/alpha/extensions/maven\")")
+
+(def tool-deps-alpha-example-expected
+  "(ns moved.clojure.tools.deps.alpha)
+   (load \"/moved/clojure/tools/deps/alpha/extensions/maven\")")
 
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]
@@ -155,6 +162,9 @@
         example-dir   (io/file temp-dir "src" "example")
         a-dir         (io/file temp-dir "src" "example" "a")
         with-dash-dir (io/file temp-dir "src" "example" "with_dash")
+        src2-dir       (io/file temp-dir "src2")
+        deps-alpha-dir (io/file temp-dir "src2" "clojure" "tools" "deps")
+        deps-alpha-moved (io/file temp-dir "src2" "moved" "clojure" "tools" "deps" "alpha.clj")
         file-one      (create-source-file! (io/file example-dir "one.clj") ex-1)
         file-two      (create-source-file! (io/file example-dir "two.clj") ex-2)
         file-three    (create-source-file! (io/file example-dir "three.clj") ex-3)
@@ -174,6 +184,7 @@
     (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
     (create-source-file! (io/file medley-dir "core.clj") medley-stub)
     (create-source-file! (io/file example-dir "eight.clj") example-eight)
+    (create-source-file! (io/file deps-alpha-dir "alpha.clj") tool-deps-alpha-example)
 
     (Thread/sleep 1500) ;; ensure file timestamps are different
     (t/testing "move ns simple case, no dash, no deftype, defrecord"
@@ -252,4 +263,8 @@
     (t/testing "testing cljc file without ns macro, with a replacement"
       (create-source-file! (io/file (io/file temp-dir "src" "clojure" "data" "xml") "node.clj") "(ns clojure.data.xml.node)")
       (sut/move-ns 'clojure.data.xml.node 'clojure.moved.data.xml.node src-dir ".clj" [src-dir] nil)
-      (t/is (= (slurp file-data-readers) ex-data-readers-expected)))))
+      (t/is (= (slurp file-data-readers) ex-data-readers-expected)))
+
+    (t/testing "testing load statements rewritten correctly"
+      (sut/move-ns 'clojure.tools.deps.alpha 'moved.clojure.tools.deps.alpha src2-dir ".clj" [src2-dir] nil)
+      (t/is (= tool-deps-alpha-example-expected (slurp deps-alpha-moved))))))

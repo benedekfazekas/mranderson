@@ -69,6 +69,10 @@
 (defn- java-package [sym]
   (str/replace (name sym) "-" "_"))
 
+(defn- load-param [sym]
+  (-> (str/replace (name sym) "." "/")
+      (str/replace "-" "_")))
+
 (defn- java-style-prefix?
   [old-sym node]
   (when-not (#{:uneval} (b/tag node))
@@ -189,7 +193,9 @@
         old-pkg-prefix  (java-package old-sym)
         new-pkg-prefix  (java-package new-sym)
         old-type-prefix (str "^" (java-package old-sym))
-        new-type-prefix (str "^" (java-package new-sym))]
+        new-type-prefix (str "^" (java-package new-sym))
+        old-load-param  (load-param old-sym)
+        new-load-param  (load-param new-sym)]
     (cond
 
       (= match old-ns-ref)
@@ -205,6 +211,9 @@
       (str/starts-with? match old-ns-ref-dot)
       (str/replace match old-ns-ref-dot new-ns-ref-dot)
 
+      (str/starts-with? match old-load-param)
+      (str/replace match old-load-param new-load-param)
+
       :default
       match)))
 
@@ -212,10 +221,10 @@
   ;; LispReader.java uses #"[:]?([\D&&[^/]].*/)?([\D&&[^/]][^/]*)" but
   ;; that's too broad; we don't want a whole namespace-qualified symbol,
   ;; just each part individually.
-  #"\"?[a-zA-Z0-9$%*+=?!<>^_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
+  "\"?[a-zA-Z0-9$%*+=?!<>^_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
 
 (defn- replace-in-source [source-sans-ns old-sym new-sym]
-  (str/replace source-sans-ns symbol-regex (partial source-replacement old-sym new-sym)))
+  (str/replace source-sans-ns (re-pattern (str (load-param old-sym) "|" symbol-regex)) (partial source-replacement old-sym new-sym)))
 
 (defn- after-platfrom-marker? [platform node]
   (when-not (#{:uneval} (b/tag node))
