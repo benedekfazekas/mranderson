@@ -135,12 +135,14 @@
  (:require [with-dash.example.eight :as eight]))")
 
 (def tool-deps-alpha-example
-  "(ns clojure.tools.deps.alpha)
-   (load \"/clojure/tools/deps/alpha/extensions/maven\")")
+  (slurp "test-resources/tools-deps-alpha-example.txt"))
 
 (def tool-deps-alpha-example-expected
-  "(ns moved.clojure.tools.deps.alpha)
-   (load \"/moved/clojure/tools/deps/alpha/extensions/maven\")")
+  "(ns
+  moved.clojure.tools.deps.alpha)
+
+(load \"/moved/clojure/tools/deps/alpha/extensions/maven\")
+")
 
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]

@@ -1,0 +1,18 @@
+(ns
+  ^{:author "Alex Taggart"
+    :doc
+    "Support for testing whether logging calls are made.
+
+  Usage example:
+    (require '[clojure.tools.logging :as log]
+             '[clojure.tools.logging.test :refer [logged? with-log])
+
+    (with-log
+      (log/info \"Hello World!\")
+      (log/error (Exception. \"Did a thing\") \"Error: oops\")
+      (logged? 'user :info #\"Hello\")                           ; true
+      (logged? 'user :error [Throwable #\"thing\"] #\"Error:\")    ; true
+      (logged? 'user :debug \"Hi\"))                             ; false"}
+clojure.tools.deps.alpha)
+
+(load "/clojure/tools/deps/alpha/extensions/maven")
