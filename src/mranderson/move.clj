@@ -282,15 +282,21 @@
           (recur (.getParentFile dir)))))
     (throw (FileNotFoundException. (format "file for %s not found in %s" old-sym source-path)))))
 
+(def ^:private pmap-runner
+  "Removing parallelism might alleviate https://github.com/benedekfazekas/mranderson/issues/56"
+  (if (System/getProperty "mranderson.internal.no-parallelism")
+    map
+    pmap))
+
 (defn replace-ns-symbol-in-source-files
   "Replaces all occurrences of the old name with the new name in
   all Clojure source files found in dirs."
   [old-sym new-sym extension dirs watermark]
   (->> (clojure-source-files dirs extension)
-       (pmap (fn [file]
-               (->> (str file)
-                    util/file->extension
-                    (update-file file replace-ns-symbol old-sym new-sym watermark extension))))
+       (pmap-runner (fn [file]
+                      (->> (str file)
+                           util/file->extension
+                           (update-file file replace-ns-symbol old-sym new-sym watermark extension))))
        (doall)))
 
 (defn move-ns
