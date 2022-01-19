@@ -2,10 +2,19 @@
 
 ## Unreleased
 
+## Bug fixes
+
+- [fix [#53](https://github.com/benedekfazekas/mranderson/issues/53)] Fix inlining where one directory name in the library is a substring of an other directory name
+- [fix [#49](https://github.com/benedekfazekas/mranderson/issues/49)] Options accepted from both CLI and the project map
+
 ## Changes
 
+- [fix [#63](https://github.com/benedekfazekas/mranderson/pull/63)] introduce `mranderson.internal.no-parallelism` as on option temporarily
+- integration tests against `cider-nrepl` and `refactor-nrepl`
+- improve CI matrix
 - Simplify internal threading setup
 - [fix [#58](https://github.com/benedekfazekas/mranderson/issues/58)] Offer a new `:included-source-paths` option, which is described in the README.
+- use `org.pantsbuild.jarjar:1.7.2` instead of `jarjar:1.3`. Also abandoned but still an upgrade
 
 ## 0.5.3
 
