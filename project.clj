@@ -23,6 +23,14 @@
              :eastwood {:plugins      [[jonase/eastwood "0.9.9"]]
                         :eastwood     {:exclude-linters [:no-ns-form-found]}}
              :mranderson-plugin {:plugins [[thomasa/mranderson ~project-version]]}
+             ;; copy of plugin.mranderson/config profile, needed here so mrandersoned pom/jar can be built for mranderson itself
+             :mranderson-profile ^:leaky {:omit-source true
+                                          :source-paths ["target/srcdeps"]
+                                          :filespecs [{:type :paths :paths ["target/srcdeps"]}]
+                                          :auto-clean false
+                                          :srcdeps-project-hacks true
+                                          :middleware [mranderson.plugin/middleware]
+                                          :jar-exclusions [#"(?i)^META-INF/.*"]}
              :kaocha {:dependencies [[lambdaisland/kaocha "0.0-418"]
                                      [lambdaisland/kaocha-cloverage "0.0-32"]]}}
   :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]
