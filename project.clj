@@ -12,18 +12,19 @@
                     ;; https://saker.build/blog/javac_source_target_parameters/index.html / https://archive.md/JH260
                     ["--release" "8"])
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
-  :dependencies [^:inline-dep [com.cemerick/pomegranate "0.4.0"]
-                 ^:inline-dep [org.clojure/tools.namespace "1.1.0"]
-                 ^:inline-dep [me.raynes/fs "1.4.6"]
-                 ^:inline-dep [rewrite-clj "1.0.682-alpha"]
+  :dependencies [^:inline-dep [clj-commons/pomegranate "1.2.1"]
+                 ^:inline-dep [org.clojure/tools.namespace "1.3.0"]
+                 ^:inline-dep [clj-commons/fs "1.6.310"]
+                 ^:inline-dep [rewrite-clj "1.1.45"]
                  [org.clojure/clojure "1.10.3" :scope "provided"]
                  [org.pantsbuild/jarjar "1.7.2"]]
   :mranderson {:project-prefix "mranderson.inlined"}
-  :profiles {:dev {:dependencies [[leiningen-core "2.9.1"]]}
-             :eastwood {:plugins      [[jonase/eastwood "0.9.9"]]
-                        :eastwood     {:exclude-linters [:no-ns-form-found]}}
+  :profiles {:dev {:dependencies [[leiningen-core "2.9.10"]]}
+             :eastwood {:plugins [[jonase/eastwood "1.3.0"]]
+                        :eastwood {:exclude-linters [:no-ns-form-found]}}
              :mranderson-plugin {:plugins [[thomasa/mranderson ~project-version]]}
              ;; copy of plugin.mranderson/config profile, needed here so mrandersoned pom/jar can be built for mranderson itself
+             ;; see Makefile for usage
              :mranderson-profile ^:leaky {:omit-source true
                                           :source-paths ["target/srcdeps"]
                                           :filespecs [{:type :paths :paths ["target/srcdeps"]}]
@@ -31,8 +32,9 @@
                                           :srcdeps-project-hacks true
                                           :middleware [mranderson.plugin/middleware]
                                           :jar-exclusions [#"(?i)^META-INF/.*"]}
-             :kaocha {:dependencies [[lambdaisland/kaocha "0.0-418"]
-                                     [lambdaisland/kaocha-cloverage "0.0-32"]]}}
+             :kaocha {:eval-in :sub-process
+                      :dependencies [[lambdaisland/kaocha "1.69.1069"]
+                                     [lambdaisland/kaocha-cloverage "1.0.75"]]}}
   :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]
             "kaocha-watch" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--watch"]
             "kaocha-coverage" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--plugin" "cloverage"]})
