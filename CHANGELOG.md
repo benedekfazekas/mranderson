@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+
 ## Bug fixes
 
 - [fix [#53](https://github.com/benedekfazekas/mranderson/issues/53)] Fix inlining where one directory name in the library is a substring of an other directory name
@@ -9,6 +10,7 @@
 
 ## Changes
 
+- [maint [#66](https://github.com/benedekfazekas/mranderson/issues/66)] bump MrAnderson dependencies
 - [fix [#63](https://github.com/benedekfazekas/mranderson/pull/63)] introduce `mranderson.internal.no-parallelism` as on option temporarily
 - integration tests against `cider-nrepl` and `refactor-nrepl`
 - improve CI matrix

@@ -128,12 +128,12 @@
   [content]
   (let [reader     (reader/string-reader content)
         first-form (parser/parse reader)]
-    (loop [ns-form-maybe (and first-form (z/edn first-form))]
+    (loop [ns-form-maybe (and first-form (z/of-node first-form))]
       (if (ns-decl? ns-form-maybe)
         [ns-form-maybe
          (str/replace content (z/root-string ns-form-maybe) ns-form-placeholder)]
         (if-let [next-form (parser/parse reader)]
-          (recur (z/edn next-form))
+          (recur (z/of-node next-form))
           [nil content])))))
 
 (defn- watermark-ns-maybe [ns-loc watermark]
@@ -142,7 +142,7 @@
                    z/right
                    (z/edit (fn [ns-name] (with-meta ns-name (assoc (meta ns-name) watermark true))))
                    z/root
-                   z/edn))
+                   z/of-node))
       ns-loc))
 
 (defn- import? [node]
@@ -168,9 +168,9 @@
 (defn- replace-in-import [ns-loc old-sym new-sym]
   (if-let [import-loc (some-> (z/find-next-depth-first ns-loc import?)
                               (z/up))]
-    (-> (z/replace import-loc (replace-in-import* (z/edn (z/node import-loc)) old-sym new-sym))
+    (-> (z/replace import-loc (replace-in-import* (z/of-node (z/node import-loc)) old-sym new-sym))
         z/root
-        z/edn)
+        z/of-node)
     ns-loc))
 
 (defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
@@ -226,7 +226,7 @@
          found-nodes []]
     (if-let [found-node (z/find-next-depth-first loc (partial after-platfrom-marker? platform))]
       (recur (z/replace found-node (symbol (str (name platform) "_require"))) (conj found-nodes found-node))
-      [found-nodes (z/edn (z/root loc))])))
+      [found-nodes (z/of-node (z/root loc))])))
 
 (defn- restore-platform-specific-subforms [platform replaced-nodes ns-form]
   (loop [form             ns-form
