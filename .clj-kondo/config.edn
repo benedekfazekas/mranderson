@@ -1,0 +1,7 @@
+{:config-paths ^:replace [] ;; don't pick up user defaults
+ :lint-as
+ {mranderson.test/with-mranderson clojure.core/let
+  mranderson.test/with-project clojure.core/let}
+ :linters
+ {:unused-binding {:exclude-destructured-keys-in-fn-args true}
+  :cond-else {:level :off}}}
