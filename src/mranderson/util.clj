@@ -6,7 +6,7 @@
             [clojure.set :as s])
   (:import [java.io File]
            [org.pantsbuild.jarjar Rule]
-           [mranderson.util JjPackageRemapper JjMainProcessor]
+           [mranderson.util JjMainProcessor]
            [org.pantsbuild.jarjar.util StandaloneJarProcessor]))
 
 (defn info [& args]
