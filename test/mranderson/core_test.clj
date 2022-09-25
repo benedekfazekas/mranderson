@@ -71,11 +71,13 @@
 
       (testing "Dependency source file"
         (testing "with clj extension was correctly updated"
+          (println (first (line-seq (io/reader (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.clj")))))
           (let [content (slurp (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.clj"))]
             (is (string/starts-with? content (str "(ns ^{:mranderson/inlined true} " ns-prefix ".instaparse.v1v4v12.instaparse.transform")))))
         (testing "with cljc extension was correctly updated"
+          (println (first (line-seq (io/reader (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.cljc")))))
           (let [content (slurp (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.cljc"))]
-           (is (string/starts-with? content (str "(ns ^{:mranderson/inlined true} " ns-prefix ".instaparse.v1v4v12.instaparse.transform")))))))))
+            (is (string/starts-with? content (str "(ns ^{:mranderson/inlined true} " ns-prefix ".instaparse.v1v4v12.instaparse.transform")))))))))
 
 (deftest t-copy-source-files
   (testing "Can merge files across overlapping dirs"
