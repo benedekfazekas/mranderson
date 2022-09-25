@@ -220,13 +220,23 @@
         (doall
          (map #(prefix-dependency-imports! pname pversion pprefix % (str src-path) srcdeps) prefixes))
         (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
-    (doseq [clj-file clj-files]
+    (doseq [clj-file clj-files
+            :let [extension (u/file->extension (str clj-file))]]
       (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-        (let [new-ns (replacement repl-prefix old-ns nil)]
+        (let [new-ns (if (str/starts-with? old-ns repl-prefix)
+                       old-ns (replacement repl-prefix old-ns nil))]
           (u/debug "    new ns:" new-ns)
-          (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-deps-dirs watermark)
+          (if (str/starts-with? old-ns repl-prefix)
+            ;; If there are multiple files with the same
+            ;; namespace (cljc and clj for example) we might already
+            ;; have replaced the namespaces when the companion file
+            ;; was moved. In this case, move the file without changing
+            ;; its content.
+            (let [original-ns (symbol (str/replace (str old-ns) (str repl-prefix ".") ""))]
+              (move/move-ns-file original-ns new-ns extension srcdeps))
+            (move/move-ns old-ns new-ns srcdeps extension all-deps-dirs watermark))
           (when (or (str/ends-with? src-path (u/sym->file-name pprefix)) expose?)
-            (move/replace-ns-symbol-in-source-files old-ns new-ns (u/file->extension (str clj-file)) project-source-dirs nil)))
+            (move/replace-ns-symbol-in-source-files old-ns new-ns extension project-source-dirs nil)))
         ;; a clj file without ns
         (when-not (= "project.clj" clj-file)
           (let [old-path (fs/file srcdeps clj-file)
