@@ -220,7 +220,7 @@
         (doall
          (map #(prefix-dependency-imports! pname pversion pprefix % (str src-path) srcdeps) prefixes))
         (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
-    (doseq [clj-file clj-files
+    (doseq [clj-file (sort-by str clj-files)
             :let [extension (u/file->extension (str clj-file))]]
       (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [new-ns (if (str/starts-with? old-ns repl-prefix)
