@@ -11,6 +11,7 @@
 
 (def dependencies
   '[^:inline-dep [org.clojure/data.xml "0.2.0-alpha6"]
+    ^:inline-dep [instaparse "1.4.12"]
     ^:inline-dep [riddley "0.1.12"]
     ^:inline-dep [cljfmt "0.7.0"]])
 
@@ -63,11 +64,19 @@
                                     "riddley"
                                     "walk.clj")]
           (is (string/starts-with?
-                (slurp riddley-file)
-                (str "(ns ^{:mranderson/inlined true} " ns-prefix ".riddley.v0v1v12.riddley.walk\n"
-                     "  (:refer-clojure :exclude [macroexpand])\n"
-                     "  (:require\n"
-                     "    [" ns-prefix ".riddley.v0v1v12.riddley.compiler :as cmp]))"))))))))
+               (slurp riddley-file)
+               (str "(ns ^{:mranderson/inlined true} " ns-prefix ".riddley.v0v1v12.riddley.walk\n"
+                    "  (:refer-clojure :exclude [macroexpand])\n"
+                    "  (:require\n"
+                    "    [" ns-prefix ".riddley.v0v1v12.riddley.compiler :as cmp]))")))))
+
+      (testing "Dependency source file"
+        (testing "with clj extension was correctly updated"
+          (let [content (slurp (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.clj"))]
+            (is (string/starts-with? content (str "(ns " ns-prefix ".instaparse.v1v4v12.instaparse.transform")))))
+        (testing "with cljc extension was correctly updated"
+          (let [content (slurp (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.cljc"))]
+           (is (string/starts-with? content (str "(ns " ns-prefix ".instaparse.v1v4v12.instaparse.transform")))))))))
 
 (deftest t-copy-source-files
   (testing "Can merge files across overlapping dirs"

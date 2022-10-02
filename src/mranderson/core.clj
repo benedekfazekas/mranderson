@@ -220,8 +220,9 @@
         (doall
          (map #(prefix-dependency-imports! pname pversion pprefix % (str src-path) srcdeps) prefixes))
         (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
-    (doseq [clj-file clj-files]
-      (if-let [old-ns (->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
+    (doseq [clj-file clj-files
+            :when (.exists (fs/file srcdeps clj-file))];; some cljc file might have been moved with their platform specific file
+      (if-let [old-ns (some->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [new-ns (replacement repl-prefix old-ns nil)]
           (u/debug "    new ns:" new-ns)
           (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-deps-dirs watermark)

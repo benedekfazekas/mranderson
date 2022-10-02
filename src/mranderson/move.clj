@@ -312,4 +312,7 @@
   sure you have a backup or version control."
   [old-sym new-sym source-path extension dirs watermark]
   (move-ns-file old-sym new-sym extension source-path)
+  ;; move cljc file with the platform specific file if exists
+  (when (and (#{".clj" ".cljs"} extension) (.exists (sym->file source-path old-sym ".cljc")))
+    (move-ns-file old-sym new-sym ".cljc" source-path))
   (replace-ns-symbol-in-source-files old-sym new-sym extension dirs watermark))
