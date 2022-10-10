@@ -206,7 +206,7 @@
                                parent-clj-dirs)
                               vec
                               (mapv str)
-                              u/remove-subdirs
+                              u/normalize-dirs
                               (mapv fs/file))]
     (u/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
     (u/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)

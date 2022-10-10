@@ -23,6 +23,7 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [mranderson.util :as util]
+            [me.raynes.fs :as fs]
             [rewrite-clj.zip :as z]
             [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
@@ -60,7 +61,7 @@
        (filter (fn [^File file]
                  (and (.isFile file)
                       (update? (str file) extension))))
-       (mapv #(.getCanonicalFile ^File %))))
+       (mapv fs/normalized)))
 
 (defn- prefix-libspec [libspec]
   (let [prefix (str/join "." (butlast (str/split (name libspec) #"\.")))]
@@ -292,19 +293,14 @@
   "Replaces all occurrences of the old name with the new name in
   all Clojure source files found in dirs."
   [old-sym new-sym extension dirs watermark]
-  (let [files (clojure-source-files dirs extension)
-        dupes (->> files
-                   (map str)
-                   (frequencies)
-                   (filterv #(> (second %) 1)))]
-    (if (seq dupes)
-      (throw (ex-info "internal error: found unexpected duplicates in files" {:dupes dupes}))
-      (->> files
-           (pmap-runner (fn [file]
-                          (->> (str file)
-                               util/file->extension
-                               (update-file file replace-ns-symbol old-sym new-sym watermark extension))))
-           (doall)))))
+  (let [files (clojure-source-files dirs extension)]
+    (util/assert-no-duplicate-files files)
+    (->> files
+         (pmap-runner (fn [file]
+                        (->> (str file)
+                             util/file->extension
+                             (update-file file replace-ns-symbol old-sym new-sym watermark extension))))
+         (doall))))
 
 (defn move-ns
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
