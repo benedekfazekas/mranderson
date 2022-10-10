@@ -27,13 +27,13 @@
             (mapcat file-seq)
             (remove (fn [file]
                       (some #(.startsWith (str file) %) excl-dirs) ))
-            (filter (fn [^File file]
-                      (let [file-name (.getName file)]
-                        (and (.isFile file)
-                             (or
-                              (.endsWith file-name ".cljc")
-                              (.endsWith file-name ".cljs")
-                              (.endsWith file-name ".clj")))))))))
+            (filterv (fn [^File file]
+                       (let [file-name (.getName file)]
+                         (and (.isFile file)
+                              (or
+                                (.endsWith file-name ".cljc")
+                                (.endsWith file-name ".cljs")
+                                (.endsWith file-name ".clj")))))))))
   ([dirs]
      (clojure-source-files-relative dirs nil)))
 
@@ -64,9 +64,9 @@
        (#(.listFiles ^File %))
        (filter #(.isDirectory ^File %))
        (mapcat file-seq)
-       (filter (fn [^File file]
-                 (and (.isFile file)
-                      (.endsWith (.getName file) ".class"))))))
+       (filterv (fn [^File file]
+                  (and (.isFile file)
+                       (.endsWith (.getName file) ".class"))))))
 
 (defn class-file->fully-qualified-name [file]
   (->> (-> file
@@ -155,6 +155,7 @@
 
 (defn remove-subdirs [dirs]
   (->> (sort dirs)
+       distinct
        (reduce (fn [ds dir]
                  (let [last-dir (last ds)]
                    (if (and last-dir (fs/child-of? last-dir dir))
