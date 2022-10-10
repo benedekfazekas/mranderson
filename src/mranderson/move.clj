@@ -293,8 +293,9 @@
   all Clojure source files found in dirs."
   [old-sym new-sym extension dirs watermark]
   (let [files (clojure-source-files dirs extension)
-        dupes (->> (map str files)
-                   frequencies
+        dupes (->> files
+                   (map str)
+                   (frequencies)
                    (filterv #(> (second %) 1)))]
     (if (seq dupes)
       (throw (ex-info "internal error: found unexpected duplicates in files" {:dupes dupes}))
