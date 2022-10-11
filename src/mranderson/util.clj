@@ -27,13 +27,13 @@
             (mapcat file-seq)
             (remove (fn [file]
                       (some #(.startsWith (str file) %) excl-dirs) ))
-            (filter (fn [^File file]
-                      (let [file-name (.getName file)]
-                        (and (.isFile file)
-                             (or
-                              (.endsWith file-name ".cljc")
-                              (.endsWith file-name ".cljs")
-                              (.endsWith file-name ".clj")))))))))
+            (filterv (fn [^File file]
+                       (let [file-name (.getName file)]
+                         (and (.isFile file)
+                              (or
+                                (.endsWith file-name ".cljc")
+                                (.endsWith file-name ".cljs")
+                                (.endsWith file-name ".clj")))))))))
   ([dirs]
      (clojure-source-files-relative dirs nil)))
 
@@ -64,9 +64,9 @@
        (#(.listFiles ^File %))
        (filter #(.isDirectory ^File %))
        (mapcat file-seq)
-       (filter (fn [^File file]
-                 (and (.isFile file)
-                      (.endsWith (.getName file) ".class"))))))
+       (filterv (fn [^File file]
+                  (and (.isFile file)
+                       (.endsWith (.getName file) ".class"))))))
 
 (defn class-file->fully-qualified-name [file]
   (->> (-> file
@@ -153,13 +153,36 @@
        butlast
        (str/join "/")))
 
-(defn remove-subdirs [dirs]
-  (->> (sort dirs)
+(defn duplicated-files
+  "Returns map of duplicates in `files`, key is fully qualified file as string, value is num occurrences.
+  If no duplicates, empty map is returned."
+  [files]
+  (->> files
+       (map #(-> % str fs/normalized str))
+       (frequencies)
+       (filterv #(> (second %) 1))
+       (into {})))
+
+(defn assert-no-duplicate-files
+  "Throw internal error if there are any duplicates in `files`."
+  [files]
+  (let [dupes (duplicated-files files)]
+    (when (seq dupes)
+      (throw (ex-info "internal error: found unexpected duplicates in files" {:dupes dupes})))))
+
+(defn normalize-dirs
+  "Returns `dirs` (as strings) normalized, deduped and without subdirs"
+  [dirs]
+  (->> dirs
+       (map #(-> % str fs/normalized str))
+       sort
+       distinct
        (reduce (fn [ds dir]
                  (let [last-dir (last ds)]
                    (if (and last-dir (fs/child-of? last-dir dir))
                      ds
-                     (conj ds dir)))) [])))
+                     (conj ds dir))))
+               [])))
 
 (defn clj-files->dirs
   [prefix clj-files]
