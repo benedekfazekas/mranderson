@@ -209,6 +209,10 @@ All the options can be provided via CLI or the project file.
 
 Leiningen 2.9.1 or above. For MrAnderson to work, does not mean your project is restricted to a java or clojure version.
 
+### Supported OSes and platforms
+
+MrAnderson is tested and supported on Linux and macOS. Windows systems are not supported or tested against.
+
 ### Projects that use MrAnderson
 
 - [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)
@@ -230,7 +234,7 @@ A really nice wrapper of mranderson can be found [here](https://github.com/xsc/l
 
 ## License
 
-Copyright © 2014-2021 Benedek Fazekas
+Copyright © 2014-2022 Benedek Fazekas
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
