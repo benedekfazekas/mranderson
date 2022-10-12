@@ -12,6 +12,7 @@
 
 ## Changes
 
+- [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] uncouple MrAnderson from leiningen to support general use 
 - [maint [#66](https://github.com/benedekfazekas/mranderson/issues/66)] bump MrAnderson dependencies
 - [fix [#63](https://github.com/benedekfazekas/mranderson/pull/63)] introduce `mranderson.internal.no-parallelism` as on option temporarily
 - integration tests against `cider-nrepl` and `refactor-nrepl`
