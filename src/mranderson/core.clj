@@ -6,13 +6,14 @@
             [mranderson.dependency.resolver :as dr]
             [mranderson.dependency.tree :as t]
             [mranderson.move :as move]
+            [mranderson.log :as log]
             [mranderson.util :as u])
   (:import java.util.UUID
            [java.util.zip ZipEntry ZipFile ZipOutputStream]))
 
 ;; inlined from leiningen source
 (defn- print-dep [dep level]
-  (u/info (apply str (repeat (* 2 level) \space)) (pr-str dep)))
+  (log/info (apply str (repeat (* 2 level) \space)) (pr-str dep)))
 
 (defn- zip-target-file
   [target-dir entry-path]
@@ -130,7 +131,7 @@
 (defn- class-deps-jar!
   "creates jar containing the deps class files"
   []
-  (u/info "jaring all class file dependencies into target/class-deps.jar")
+  (log/info "jaring all class file dependencies into target/class-deps.jar")
   (with-open [file (io/output-stream "target/class-deps.jar")
               zip (ZipOutputStream. file)
               writer (io/writer zip)]
@@ -144,11 +145,11 @@
             (.closeEntry zip)))))))
 
 (defn- replace-class-deps! []
-  (u/info "deleting directories with class files in target/srcdeps...")
+  (log/info "deleting directories with class files in target/srcdeps...")
   (doseq [class-dir (u/java-class-dirs)]
     (fs/delete-dir (str "target/srcdeps/" class-dir))
-    (u/info "  " class-dir " deleted"))
-  (u/info "unzipping repackaged class-deps.jar into target/srcdeps")
+    (log/info "  " class-dir " deleted"))
+  (log/info "unzipping repackaged class-deps.jar into target/srcdeps")
   (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
 
 (defn- filter-clj-files [imports package-names]
@@ -175,11 +176,11 @@
                            set)
         clj-files (filter-clj-files imports package-names)]
     (when (seq clj-files)
-      (u/info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))
-      (u/debug "      class-names" class-names)
-      (u/debug "      package-names" package-names)
-      (u/debug "      imports" imports)
-      (u/debug "      clj files" (str/join ":" clj-files))
+      (log/info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))
+      (log/debug "      class-names" class-names)
+      (log/debug "      package-names" package-names)
+      (log/debug "      imports" imports)
+      (log/debug "      clj files" (str/join ":" clj-files))
       (doseq [file clj-files]
         (let [old         (slurp (fs/file file))
               orig-import (find-orig-import imports file)
@@ -189,9 +190,9 @@
               new         (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
               new         (str/replace new uuid new-import)]
           (when-not (= old new)
-            (u/debug "file: " file " orig import:" orig-import " new import:" new-import)
+            (log/debug "file: " file " orig import:" orig-import " new import:" new-import)
             (spit file new))))
-      (u/info "    prefixing imports: done"))))
+      (log/info "    prefixing imports: done"))))
 
 (defn- update-artifact!
   [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs expositions watermark]}
@@ -208,13 +209,13 @@
                               (mapv str)
                               u/normalize-dirs
                               (mapv fs/file))]
-    (u/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
-    (u/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
-    (u/debug "    modified namespace prefix: " repl-prefix)
-    (u/debug "    src path: " src-path)
-    (u/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
-    (u/debug "    all dirs: " all-deps-dirs)
-    (u/debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
+    (log/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
+    (log/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
+    (log/debug "    modified namespace prefix: " repl-prefix)
+    (log/debug "    src path: " src-path)
+    (log/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
+    (log/debug "    all dirs: " all-deps-dirs)
+    (log/debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
     (when-not skip-repackage-java-classes
       (if (str/ends-with? (str src-path) (u/sym->file-name pprefix))
         (doall
@@ -224,7 +225,7 @@
             :when (.exists (fs/file srcdeps clj-file))];; some cljc file might have been moved with their platform specific file
       (if-let [old-ns (some->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
         (let [new-ns (replacement repl-prefix old-ns nil)]
-          (u/debug "    new ns:" new-ns)
+          (log/debug "    new ns:" new-ns)
           (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-deps-dirs watermark)
           (when (or (str/ends-with? src-path (u/sym->file-name pprefix)) expose?)
             (move/replace-ns-symbol-in-source-files old-ns new-ns (u/file->extension (str clj-file)) project-source-dirs nil)))
@@ -261,7 +262,7 @@
                          (str expected-prefix ".cljs")
                          (str expected-prefix ".cljc")}]
             (doseq [to-delete (remove match? files)]
-              (u/warn "  removing duplicated file with namespace mismatch:" to-delete)
+              (log/warn "  removing duplicated file with namespace mismatch:" to-delete)
               (.delete (fs/file srcdeps to-delete)))
             (filter match? files))
           ;; Only one file means nothing to do (but it might still be in the
@@ -273,12 +274,12 @@
   (let [art-name         (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version      (str "v" (-> dep second (str/replace "." "v")))
-        _                (u/info "unzipping [" art-name-cleaned " [" art-version "]]")
+        _                (log/info "unzipping [" art-name-cleaned " [" art-version "]]")
         clj-files        (->> (unzip (-> dep meta :file) srcdeps)
                               (remove-invalid-duplicates! srcdeps)
                               (doall))
         clj-dirs         (u/clj-files->dirs srcdeps clj-files)]
-    (u/debug (format "resolving transitive dependencies for %s:" art-name))
+    (log/debug (format "resolving transitive dependencies for %s:" art-name))
     [{:art-name-cleaned art-name-cleaned
       :art-version      art-version
       :clj-files        clj-files
@@ -301,7 +302,7 @@
   "Unzips and transforms files in an unresolved dependency tree."
   [unresolved-deps-tree paths ctx]
   (let [unresolved-deps-tree (t/evict-subtrees unresolved-deps-tree '#{org.clojure/clojure org.clojure/clojurescript})]
-    (u/info "in UNRESOLVED-TREE mode, working on an unresolved dependency tree")
+    (log/info "in UNRESOLVED-TREE mode, working on an unresolved dependency tree")
     (t/walk-deps unresolved-deps-tree print-dep)
     (t/walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx)))
 
@@ -322,7 +323,7 @@
                                         (filter vector?)
                                         (reduce (fn [m dep] (assoc m dep nil)) {})
                                         (into (sorted-map-by topo-comparator)))]
-    (u/info "in RESOLVED-TREE mode, working on a resolved dependency tree")
+    (log/info "in RESOLVED-TREE mode, working on a resolved dependency tree")
     (t/walk-deps resolved-deps print-dep)
     (t/walk-ordered-deps
      ordered-resolved-deps
@@ -352,7 +353,7 @@
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
         overrides                   (or (and unresolved-tree overrides) {})
         unresolved-deps-tree        (dr/expand-dep-hierarchy repositories resolved-deps-tree overrides)]
-    (u/info "retrieve dependencies and munge clojure source files")
+    (log/info "retrieve dependencies and munge clojure source files")
     (if unresolved-tree
       (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))

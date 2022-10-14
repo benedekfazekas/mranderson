@@ -2,21 +2,12 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [me.raynes.fs :as fs]
-            [leiningen.core.main :as lein-main]
-            [clojure.set :as s])
+            [clojure.set :as s]
+            [mranderson.log :as log])
   (:import [java.io File]
            [org.pantsbuild.jarjar Rule]
            [mranderson.util JjMainProcessor]
            [org.pantsbuild.jarjar.util StandaloneJarProcessor]))
-
-(defn info [& args]
-  (apply lein-main/info args))
-
-(defn warn [& args]
-  (apply lein-main/warn args))
-
-(defn debug [& args]
-  (apply lein-main/debug args))
 
 (defn clojure-source-files-relative
   ([dirs excl-dir]
@@ -114,7 +105,7 @@
         rules (map (partial create-rule name-version) java-dirs)
         processor (JjMainProcessor. rules false false)
         jar-file (io/file (str "target/class-deps.jar"))]
-    (info (format "prefixing %s in target/class-deps.jar with %s" java-dirs name-version))
+    (log/info (format "prefixing %s in target/class-deps.jar with %s" java-dirs name-version))
     (StandaloneJarProcessor/run jar-file jar-file processor)))
 
 (defn remove-2parents ^String [file]

@@ -2,7 +2,8 @@
   (:require [clojure.edn :as edn]
             [me.raynes.fs :as fs]
             [mranderson.core :as c]
-            [mranderson.util :as u])
+            [mranderson.util :as u]
+            [mranderson.log :as log])
   (:import [java.util UUID]))
 
 (defn- lookup-opt
@@ -29,9 +30,9 @@
         prefix-exclusions           (lookup-opt :prefix-exclusions cli-opts mranderson)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
         project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))]
-    (u/debug "skip repackage" skip-repackage-java-classes)
-    (u/debug "project mranderson" (prn-str mranderson))
-    (u/info "project prefix: " project-prefix)
+    (log/debug "skip repackage" skip-repackage-java-classes)
+    (log/debug "project mranderson" (prn-str mranderson))
+    (log/info "project prefix: " project-prefix)
     {:pname                       name
      :pversion                    version
      :pprefix                     project-prefix
