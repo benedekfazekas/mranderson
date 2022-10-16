@@ -25,6 +25,7 @@
             [mranderson.util :as util]
             [me.raynes.fs :as fs]
             [rewrite-clj.zip :as z]
+            [rewrite-clj.node :as n]
             [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
             [rewrite-clj.reader :as reader])
@@ -137,15 +138,6 @@
           (recur (z/of-node next-form))
           [nil content])))))
 
-(defn- watermark-ns-maybe [ns-loc watermark]
-  (or (and watermark
-           (some-> (z/down ns-loc)
-                   z/right
-                   (z/edit (fn [ns-name] (with-meta ns-name (assoc (meta ns-name) watermark true))))
-                   z/root
-                   z/of-node))
-      ns-loc))
-
 (defn- import? [node]
   (when-not (#{:uneval} (b/tag node))
     (when-let [node-sexpr (b/sexpr node)]
@@ -174,8 +166,54 @@
         z/of-node)
     ns-loc))
 
+(defn- rename-ns
+  "Return `ns-loc`, with zipper location unchanged, applying `new-ns-name` and `add-meta-kw`,
+  iff current namespace name is `old-ns-name`, else return `ns-loc`.
+
+  `ns-loc` is assumed to be positioned at the `(ns ...)` form (or nil).
+
+  We don't look at or alter `ns` form's `attr-map?`.
+
+  We make an effort to preserve existing ordering and syntax of metadata."
+  [ns-loc old-ns-name new-ns-name add-meta-kw]
+  (when ns-loc
+    (let [ns-name-loc (some-> ns-loc z/down z/right )
+          cur-has-meta? (= :meta (z/tag ns-name-loc))
+          ns-loc (cond
+                   (not= (z/sexpr ns-name-loc) old-ns-name)
+                   ns-loc
+
+                   add-meta-kw
+                   (if cur-has-meta?
+                     (cond-> (z/down ns-name-loc)
+                       ;; convert existing ^:some-meta to ^{:some-meta true ...}
+                       (-> ns-name-loc z/down z/node n/keyword-node?)
+                       (z/edit (fn [kw] {kw true}))
+
+                       ;; append our new meta to existing ^{:some-meta true ...}
+                       :always
+                       (-> (z/assoc add-meta-kw true)
+                           z/right
+                           (z/replace new-ns-name)))
+                     ;; no existing meta, add it in
+                     (-> ns-name-loc
+                         (z/replace (n/meta-node {add-meta-kw true} new-ns-name))))
+
+                   cur-has-meta?
+                   (-> ns-name-loc
+                       z/down ;; to current meta
+                       z/right ;; to namespace name
+                       (z/replace new-ns-name))
+
+                   :else
+                   (z/replace ns-name-loc new-ns-name))]
+      ;; we could maybe not rebuild zipper? but for now, go with the flow
+      (-> ns-loc
+          z/root
+          z/of-node))))
+
 (defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
-  (loop [loc (-> (watermark-ns-maybe ns-loc watermark)
+  (loop [loc (-> (rename-ns ns-loc old-sym new-sym watermark)
                  (replace-in-import old-sym new-sym))]
     (if-let [found-node (some-> (z/find-next-depth-first loc (partial contains-sym? old-sym))
                                 (z/edit (partial replace-in-node old-sym new-sym)))]
@@ -319,3 +357,31 @@
   (when (and (#{".clj" ".cljs"} extension) (.exists (sym->file source-path old-sym ".cljc")))
     (move-ns-file old-sym new-sym ".cljc" source-path))
   (replace-ns-symbol-in-source-files old-sym new-sym extension dirs watermark))
+
+
+(comment
+  (-> (rename-ns (z/of-string "(ns ^{:spam true} foo)") 'foo 'bar :zing)
+      z/root-string)
+  ;; => "(ns ^{:spam true :zing true} bar)"
+
+  (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar :zing)
+      z/root-string)
+  ;; => "(ns ^{:zing true} bar)"
+
+  (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar nil)
+      z/root-string)
+  ;; => "(ns bar)"
+
+  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'foo 'bar nil)
+      z/root-string)
+  ;; => "(ns ^:boop bar)"
+
+  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'foo 'bar :zing)
+      z/root-string)
+  ;; => "(ns ^{:boop true :zing true} bar)"
+
+  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'nope 'bar :zing)
+      z/root-string)
+  ;; => "(ns ^:boop foo)"
+
+  )
