@@ -188,7 +188,7 @@
                      (cond-> (z/down ns-name-loc)
                        ;; convert existing ^:some-meta to ^{:some-meta true ...}
                        (-> ns-name-loc z/down z/node n/keyword-node?)
-                       (z/edit (fn [kw] {kw true}))
+                       (z/edit (fn [kw] (n/map-node [kw (n/spaces 1) true])))
 
                        ;; append our new meta to existing ^{:some-meta true ...}
                        :always
