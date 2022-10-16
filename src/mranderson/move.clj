@@ -197,7 +197,9 @@
                            (z/replace new-ns-name)))
                      ;; no existing meta, add it in
                      (-> ns-name-loc
-                         (z/replace (n/meta-node {add-meta-kw true} new-ns-name))))
+                         (z/replace (n/meta-node
+                                      (n/map-node [add-meta-kw (n/spaces 1) true])
+                                      new-ns-name))))
 
                    cur-has-meta?
                    (-> ns-name-loc
@@ -360,13 +362,13 @@
 
 
 (comment
-  (-> (rename-ns (z/of-string "(ns ^{:spam true} foo)") 'foo 'bar :zing)
+  (-> (rename-ns (z/of-string "(ns ^{:spam true} foo)") 'foo 'bar :mranderson/zing)
       z/root-string)
-  ;; => "(ns ^{:spam true :zing true} bar)"
+  ;; => "(ns ^{:spam true :mranderson/zing true} bar)"
 
-  (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar :zing)
+  (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar :mranderson/zing)
       z/root-string)
-  ;; => "(ns ^{:zing true} bar)"
+  ;; => "(ns ^{:mranderson/zing true} bar)"
 
   (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar nil)
       z/root-string)
@@ -376,11 +378,11 @@
       z/root-string)
   ;; => "(ns ^:boop bar)"
 
-  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'foo 'bar :zing)
+  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'foo 'bar :mranderson/zing)
       z/root-string)
-  ;; => "(ns ^{:boop true :zing true} bar)"
+  ;; => "(ns ^{:boop true :mranderson/zing true} bar)"
 
-  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'nope 'bar :zing)
+  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'nope 'bar :mranderson/zing)
       z/root-string)
   ;; => "(ns ^:boop foo)"
 
