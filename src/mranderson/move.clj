@@ -166,7 +166,23 @@
         z/of-node)
     ns-loc))
 
-(defn- rename-ns
+(defn- zskip-unintresting
+  ;; TODO: move to a zloc ns and expand to handle all zip operations
+  "Rewrite-clj only skips whitespace and comments.
+  We'd also like to skip reader discard #_ nodes (aka uneval nodes in rewrite-clj)."
+  [zloc]
+  (z/skip z/right* #(or (z/whitespace-or-comment? %)
+                        (= :uneval (z/tag %)))
+          zloc))
+
+(defn- zdown [zloc]
+  (some-> zloc z/down* zskip-unintresting))
+
+(defn- zright [zloc]
+  (some-> zloc z/right* zskip-unintresting))
+
+(defn ^:no-doc rename-ns
+  ;; exposed only for unit testing, could move to impl ns
   "Return `ns-loc`, with zipper location unchanged, applying `new-ns-name` and `add-meta-kw`,
   iff current namespace name is `old-ns-name`, else return `ns-loc`.
 
@@ -177,7 +193,7 @@
   We make an effort to preserve existing ordering and syntax of metadata."
   [ns-loc old-ns-name new-ns-name add-meta-kw]
   (when ns-loc
-    (let [ns-name-loc (some-> ns-loc z/down z/right )
+    (let [ns-name-loc (some-> ns-loc zdown zright)
           cur-has-meta? (= :meta (z/tag ns-name-loc))
           ns-loc (cond
                    (not= (z/sexpr ns-name-loc) old-ns-name)
@@ -185,15 +201,15 @@
 
                    add-meta-kw
                    (if cur-has-meta?
-                     (cond-> (z/down ns-name-loc)
+                     (cond-> (zdown ns-name-loc)
                        ;; convert existing ^:some-meta to ^{:some-meta true ...}
-                       (-> ns-name-loc z/down z/node n/keyword-node?)
+                       (-> ns-name-loc zdown z/node n/keyword-node?)
                        (z/edit (fn [kw] (n/map-node [kw (n/spaces 1) true])))
 
                        ;; append our new meta to existing ^{:some-meta true ...}
                        :always
                        (-> (z/assoc add-meta-kw true)
-                           z/right
+                           zright
                            (z/replace new-ns-name)))
                      ;; no existing meta, add it in
                      (-> ns-name-loc
@@ -203,8 +219,8 @@
 
                    cur-has-meta?
                    (-> ns-name-loc
-                       z/down ;; to current meta
-                       z/right ;; to namespace name
+                       zdown ;; to current meta
+                       zright ;; to namespace name
                        (z/replace new-ns-name))
 
                    :else
@@ -359,31 +375,3 @@
   (when (and (#{".clj" ".cljs"} extension) (.exists (sym->file source-path old-sym ".cljc")))
     (move-ns-file old-sym new-sym ".cljc" source-path))
   (replace-ns-symbol-in-source-files old-sym new-sym extension dirs watermark))
-
-
-(comment
-  (-> (rename-ns (z/of-string "(ns ^{:spam true} foo)") 'foo 'bar :mranderson/zing)
-      z/root-string)
-  ;; => "(ns ^{:spam true :mranderson/zing true} bar)"
-
-  (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar :mranderson/zing)
-      z/root-string)
-  ;; => "(ns ^{:mranderson/zing true} bar)"
-
-  (-> (rename-ns (z/of-string "(ns foo)") 'foo 'bar nil)
-      z/root-string)
-  ;; => "(ns bar)"
-
-  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'foo 'bar nil)
-      z/root-string)
-  ;; => "(ns ^:boop bar)"
-
-  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'foo 'bar :mranderson/zing)
-      z/root-string)
-  ;; => "(ns ^{:boop true :mranderson/zing true} bar)"
-
-  (-> (rename-ns (z/of-string "(ns ^:boop foo)") 'nope 'bar :mranderson/zing)
-      z/root-string)
-  ;; => "(ns ^:boop foo)"
-
-  )

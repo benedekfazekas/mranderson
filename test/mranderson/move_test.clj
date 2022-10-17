@@ -1,7 +1,8 @@
 (ns mranderson.move-test
   (:require [mranderson.move :as sut]
             [clojure.test :as t]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [rewrite-clj.zip :as z])
   (:import [java.io File]))
 
 (def ex-a-4
@@ -301,3 +302,41 @@
       (t/is (= (slurp file-moved-metamap1) expected-moved-metamap1))
       (sut/move-ns 'example.metamap2 'moved.metamap2 src-dir ".clj" [src-dir] :inlined)
       (t/is (= (slurp file-moved-metamap2) expected-moved-metamap2-watermark)))))
+
+
+(defn- s-rename-ns
+  "A litle helper for rename-ns-test"
+  [s old-ns-name new-ns-name add-meta-kw]
+  (-> s
+      z/of-string
+      (sut/rename-ns old-ns-name new-ns-name add-meta-kw)
+      z/root-string))
+
+(t/deftest rename-ns-test
+  (t/is (= (s-rename-ns "(ns ^{:spam true} foo)" 'foo 'bar :mranderson/zing)
+           "(ns ^{:spam true :mranderson/zing true} bar)")
+        "adds new meta to existing meta map")
+  (t/is (= (s-rename-ns "(ns foo)" 'foo 'bar :mranderson/zing)
+           "(ns ^{:mranderson/zing true} bar)")
+        "adds new meta when no existing meta")
+  (t/is (= (s-rename-ns "(ns foo)" 'foo 'bar nil)
+           "(ns bar)")
+        "renames when no new or existing meta")
+  (t/is (= (s-rename-ns "(ns ^:boop foo)" 'foo 'bar nil)
+           "(ns ^:boop bar)")
+        "renames when no new meta")
+  (t/is (= (s-rename-ns "(ns ^:boop foo)" 'foo 'bar :mranderson/zing)
+           "(ns ^{:boop true :mranderson/zing true} bar)")
+        "renames when new meta and existing meta is kw form")
+  (t/is (= (s-rename-ns "(ns ^:boop foo)" 'nope 'bar :mranderson/zing)
+           "(ns ^:boop foo)")
+        "does not rename or adjust meta when old-ns-name is does not match cur ns name")
+  (t/is (= (s-rename-ns "(ns)" 'foo 'bar :mranderson/zing)
+           "(ns)")
+        "empty ns is unaffected")
+  (t/is (= (s-rename-ns "(ns #_ skipped foo)" 'foo 'bar nil)
+           "(ns #_ skipped bar)")
+        "uneval node is skipped")
+  (t/is (= (s-rename-ns "(ns #_#_ skip1 skip2 ^:boop #_ skip3 foo)" 'foo 'bar :mranderson/zing)
+           "(ns #_#_ skip1 skip2 ^{:boop true :mranderson/zing true} #_ skip3 bar)")
+        "uneval nodes are skipped"))
