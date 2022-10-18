@@ -1,7 +1,8 @@
 (ns mranderson.move-test
   (:require [mranderson.move :as sut]
             [clojure.test :as t]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [rewrite-clj.zip :as z])
   (:import [java.io File]))
 
 (def ex-a-4
@@ -89,7 +90,7 @@
   [(:require [example.seven :as seven-cljs])]))")
 
 (def ex-cljc-expected
-  "(ns ^{:inlined true} example.cross
+  "(ns example.cross
   #?@(:clj
   [(:require [example.clj.seven :as seven-clj])]
   :cljs
@@ -113,8 +114,10 @@
 
 (def medley-stub "(ns medley.core)")
 
+(def medley-stub-moved-expected "(ns ^{:inlined true} moved.medley.core)")
+
 (def medley-user-expected
-  "(ns ^{:inlined true} example.user.medley
+  "(ns example.user.medley
  (:require [moved.medley.core :as medley]))")
 
 (def example-eight
@@ -134,6 +137,29 @@
            with_dash.example.eight.TypeEight)
  (:require [with-dash.example.eight :as eight]))")
 
+(def example-meta-kw1
+  "(ns ^:some-meta example.metakw1)")
+
+(def example-meta-kw2
+  "(ns ^:some-meta example.metakw2)")
+
+(def expected-moved-metakw1
+  "(ns ^:some-meta moved.metakw1)")
+
+(def expected-moved-metakw2-watermark
+  "(ns ^{:some-meta true :inlined true} moved.metakw2)")
+
+(def example-meta-map1
+  "(ns ^{:one 1 :zeta 42 :two 2} example.metamap1)")
+
+(def example-meta-map2
+  "(ns ^{:one 1 :zeta 42 :two 2} example.metamap2)")
+
+(def expected-moved-metamap1
+  "(ns ^{:one 1 :zeta 42 :two 2} moved.metamap1)")
+
+(def expected-moved-metamap2-watermark
+  "(ns ^{:one 1 :zeta 42 :two 2 :inlined true} moved.metamap2)")
 
 (defn- create-temp-dir! [dir-name]
   (let [temp-file (File/createTempFile dir-name nil)]
@@ -168,12 +194,21 @@
         file-data-readers (create-source-file! (io/file example-dir "data_readers.cljc") ex-data-readers)
         medley-dir   (io/file src-dir "medley")
         file-medley-user (create-source-file! (io/file example-dir "user" "medley.clj") medley-user-example)
+        file-medley-stub-moved (io/file src-dir "moved" "medley" "core.clj")
         file-nine    (create-source-file! (io/file example-dir "nine.clj") example-nine)
-        file-three-last-modified (.lastModified file-three)]
+        file-three-last-modified (.lastModified file-three)
+        file-moved-metakw1 (io/file src-dir "moved" "metakw1.clj")
+        file-moved-metakw2 (io/file src-dir "moved" "metakw2.clj")
+        file-moved-metamap1 (io/file src-dir "moved" "metamap1.clj")
+        file-moved-metamap2 (io/file src-dir "moved" "metamap2.clj")]
     (create-source-file! (io/file example-dir "seven.clj") ex-seven-clj)
     (create-source-file! (io/file example-dir "seven.cljs") ex-seven-cljs)
     (create-source-file! (io/file medley-dir "core.clj") medley-stub)
     (create-source-file! (io/file example-dir "eight.clj") example-eight)
+    (create-source-file! (io/file example-dir "metakw1.clj") example-meta-kw1)
+    (create-source-file! (io/file example-dir "metakw2.clj") example-meta-kw2)
+    (create-source-file! (io/file example-dir "metamap1.clj") example-meta-map1)
+    (create-source-file! (io/file example-dir "metamap2.clj") example-meta-map2)
 
     (Thread/sleep 1500) ;; ensure file timestamps are different
     (t/testing "move ns simple case, no dash, no deftype, defrecord"
@@ -217,11 +252,15 @@
 
     (t/testing "testing import deftype no dash, dash in the prefix"
       (sut/move-ns 'example.eight 'with-dash.example.eight src-dir ".clj" [src-dir] nil)
-
       (t/is (= (slurp file-nine) example-nine-expected)))
 
     (t/testing "move ns with dash, deftype, defrecord, import"
       (sut/move-ns 'example.with-dash.six 'example.prefix.with-dash.six src-dir ".clj" [src-dir] :inlined)
+      (t/is (.contains (slurp new-file-six) ":inlined true")
+            "file that was moved should have :inlined metadata watermark")
+      (t/is (not-any? #(.contains (slurp %) ":inlined true")
+                      [file-one file-two file-three file-five file-nine])
+            "files that were not moved should not have :inlined metadata watermark")
 
       ;; (println "affected after move")
       ;; (doseq [a [file-three file-five new-file-six new-file-four]]
@@ -247,9 +286,57 @@
 
     (t/testing "testing alias is first section of two section namespace"
       (sut/move-ns 'medley.core 'moved.medley.core src-dir ".clj" [src-dir] :inlined)
-
+      (t/is (= (slurp file-medley-stub-moved) medley-stub-moved-expected))
       (t/is (= (slurp file-medley-user) medley-user-expected)))
     (t/testing "testing cljc file without ns macro, with a replacement"
       (create-source-file! (io/file (io/file temp-dir "src" "clojure" "data" "xml") "node.clj") "(ns clojure.data.xml.node)")
       (sut/move-ns 'clojure.data.xml.node 'clojure.moved.data.xml.node src-dir ".clj" [src-dir] nil)
-      (t/is (= (slurp file-data-readers) ex-data-readers-expected)))))
+      (t/is (= (slurp file-data-readers) ex-data-readers-expected)))
+
+    (t/testing "namespace metadata correct on ns move"
+      (sut/move-ns 'example.metakw1 'moved.metakw1 src-dir ".clj" [src-dir] nil)
+      (t/is (= (slurp file-moved-metakw1) expected-moved-metakw1))
+      (sut/move-ns 'example.metakw2 'moved.metakw2 src-dir ".clj" [src-dir] :inlined)
+      (t/is (= (slurp file-moved-metakw2) expected-moved-metakw2-watermark))
+      (sut/move-ns 'example.metamap1 'moved.metamap1 src-dir ".clj" [src-dir] nil)
+      (t/is (= (slurp file-moved-metamap1) expected-moved-metamap1))
+      (sut/move-ns 'example.metamap2 'moved.metamap2 src-dir ".clj" [src-dir] :inlined)
+      (t/is (= (slurp file-moved-metamap2) expected-moved-metamap2-watermark)))))
+
+
+(defn- s-rename-ns
+  "A litle helper for rename-ns-test"
+  [s old-ns-name new-ns-name add-meta-kw]
+  (-> s
+      z/of-string
+      (sut/rename-ns old-ns-name new-ns-name add-meta-kw)
+      z/root-string))
+
+(t/deftest rename-ns-test
+  (t/is (= (s-rename-ns "(ns ^{:spam true} foo)" 'foo 'bar :mranderson/zing)
+           "(ns ^{:spam true :mranderson/zing true} bar)")
+        "adds new meta to existing meta map")
+  (t/is (= (s-rename-ns "(ns foo)" 'foo 'bar :mranderson/zing)
+           "(ns ^{:mranderson/zing true} bar)")
+        "adds new meta when no existing meta")
+  (t/is (= (s-rename-ns "(ns foo)" 'foo 'bar nil)
+           "(ns bar)")
+        "renames when no new or existing meta")
+  (t/is (= (s-rename-ns "(ns ^:boop foo)" 'foo 'bar nil)
+           "(ns ^:boop bar)")
+        "renames when no new meta")
+  (t/is (= (s-rename-ns "(ns ^:boop foo)" 'foo 'bar :mranderson/zing)
+           "(ns ^{:boop true :mranderson/zing true} bar)")
+        "renames when new meta and existing meta is kw form")
+  (t/is (= (s-rename-ns "(ns ^:boop foo)" 'nope 'bar :mranderson/zing)
+           "(ns ^:boop foo)")
+        "does not rename or adjust meta when old-ns-name is does not match cur ns name")
+  (t/is (= (s-rename-ns "(ns)" 'foo 'bar :mranderson/zing)
+           "(ns)")
+        "empty ns is unaffected")
+  (t/is (= (s-rename-ns "(ns #_ skipped foo)" 'foo 'bar nil)
+           "(ns #_ skipped bar)")
+        "uneval node is skipped")
+  (t/is (= (s-rename-ns "(ns #_#_ skip1 skip2 ^:boop #_ skip3 foo)" 'foo 'bar :mranderson/zing)
+           "(ns #_#_ skip1 skip2 ^{:boop true :mranderson/zing true} #_ skip3 bar)")
+        "uneval nodes are skipped"))

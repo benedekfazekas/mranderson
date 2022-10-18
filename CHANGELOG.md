@@ -5,6 +5,7 @@
 
 ## Bug fixes
 
+- [fix [#78](https://github.com/benedekfazekas/mranderson/issues/78)] Fix watermarking moved namespaces 
 - [fix [#53](https://github.com/benedekfazekas/mranderson/issues/53)] Fix inlining where one directory name in the library is a substring of an other directory name
 - [fix [#49](https://github.com/benedekfazekas/mranderson/issues/49)] Options accepted from both CLI and the project map
 - [fix [#72](https://github.com/benedekfazekas/mranderson/issues/72)] Mranderson rewrites some clj/cljc files twice (instaparse)

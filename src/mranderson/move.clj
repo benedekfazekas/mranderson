@@ -25,6 +25,7 @@
             [mranderson.util :as util]
             [me.raynes.fs :as fs]
             [rewrite-clj.zip :as z]
+            [rewrite-clj.node :as n]
             [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
             [rewrite-clj.reader :as reader])
@@ -137,15 +138,6 @@
           (recur (z/of-node next-form))
           [nil content])))))
 
-(defn- watermark-ns-maybe [ns-loc watermark]
-  (or (and watermark
-           (some-> (z/down ns-loc)
-                   z/right
-                   (z/edit (fn [ns-name] (with-meta ns-name (assoc (meta ns-name) watermark true))))
-                   z/root
-                   z/of-node))
-      ns-loc))
-
 (defn- import? [node]
   (when-not (#{:uneval} (b/tag node))
     (when-let [node-sexpr (b/sexpr node)]
@@ -174,8 +166,72 @@
         z/of-node)
     ns-loc))
 
+(defn- zskip-unintresting
+  ;; TODO: move to a zloc ns and expand to handle all zip operations
+  "Rewrite-clj only skips whitespace and comments.
+  We'd also like to skip reader discard #_ nodes (aka uneval nodes in rewrite-clj)."
+  [zloc]
+  (z/skip z/right* #(or (z/whitespace-or-comment? %)
+                        (= :uneval (z/tag %)))
+          zloc))
+
+(defn- zdown [zloc]
+  (some-> zloc z/down* zskip-unintresting))
+
+(defn- zright [zloc]
+  (some-> zloc z/right* zskip-unintresting))
+
+(defn ^:no-doc rename-ns
+  ;; exposed only for unit testing, could move to impl ns
+  "Return `ns-loc`, with zipper location unchanged, applying `new-ns-name` and `add-meta-kw`,
+  iff current namespace name is `old-ns-name`, else return `ns-loc`.
+
+  `ns-loc` is assumed to be positioned at the `(ns ...)` form (or nil).
+
+  We don't look at or alter `ns` form's `attr-map?`.
+
+  We make an effort to preserve existing ordering and syntax of metadata."
+  [ns-loc old-ns-name new-ns-name add-meta-kw]
+  (when ns-loc
+    (let [ns-name-loc (some-> ns-loc zdown zright)
+          cur-has-meta? (= :meta (z/tag ns-name-loc))
+          ns-loc (cond
+                   (not= (z/sexpr ns-name-loc) old-ns-name)
+                   ns-loc
+
+                   add-meta-kw
+                   (if cur-has-meta?
+                     (cond-> (zdown ns-name-loc)
+                       ;; convert existing ^:some-meta to ^{:some-meta true ...}
+                       (-> ns-name-loc zdown z/node n/keyword-node?)
+                       (z/edit (fn [kw] (n/map-node [kw (n/spaces 1) true])))
+
+                       ;; append our new meta to existing ^{:some-meta true ...}
+                       :always
+                       (-> (z/assoc add-meta-kw true)
+                           zright
+                           (z/replace new-ns-name)))
+                     ;; no existing meta, add it in
+                     (-> ns-name-loc
+                         (z/replace (n/meta-node
+                                      (n/map-node [add-meta-kw (n/spaces 1) true])
+                                      new-ns-name))))
+
+                   cur-has-meta?
+                   (-> ns-name-loc
+                       zdown ;; to current meta
+                       zright ;; to namespace name
+                       (z/replace new-ns-name))
+
+                   :else
+                   (z/replace ns-name-loc new-ns-name))]
+      ;; we could maybe not rebuild zipper? but for now, go with the flow
+      (-> ns-loc
+          z/root
+          z/of-node))))
+
 (defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
-  (loop [loc (-> (watermark-ns-maybe ns-loc watermark)
+  (loop [loc (-> (rename-ns ns-loc old-sym new-sym watermark)
                  (replace-in-import old-sym new-sym))]
     (if-let [found-node (some-> (z/find-next-depth-first loc (partial contains-sym? old-sym))
                                 (z/edit (partial replace-in-node old-sym new-sym)))]
