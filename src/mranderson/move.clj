@@ -26,7 +26,6 @@
             [me.raynes.fs :as fs]
             [rewrite-clj.zip :as z]
             [rewrite-clj.node :as n]
-            [rewrite-clj.zip.base :as b]
             [rewrite-clj.parser :as parser]
             [rewrite-clj.reader :as reader])
   (:import (java.io File FileNotFoundException)))
@@ -73,8 +72,8 @@
 
 (defn- java-style-prefix?
   [old-sym node]
-  (when-not (#{:uneval} (b/tag node))
-    (when-let [node-sexpr (b/sexpr node)]
+  (when-not (#{:uneval} (z/tag node))
+    (when-let [node-sexpr (z/sexpr node)]
       (str/starts-with? node-sexpr (java-package old-sym)))))
 
 (defn- libspec-prefix?
@@ -85,15 +84,15 @@
         parent-leftmost-sexpr  (and parent-leftmost-node
                                     (not
                                      (#{:uneval}
-                                      (b/tag parent-leftmost-node)))
-                                    (b/sexpr parent-leftmost-node))]
+                                      (z/tag parent-leftmost-node)))
+                                    (z/sexpr parent-leftmost-node))]
     (and first-node?
          (= :require parent-leftmost-sexpr)
          (= node-sexpr old-sym-prefix-libspec))))
 
 (defn- contains-sym? [old-sym node]
-  (when-not (#{:uneval} (b/tag node))
-    (when-let [node-sexpr (b/sexpr node)]
+  (when-not (#{:uneval} (z/tag node))
+    (when-let [node-sexpr (z/sexpr node)]
       (or
        (= node-sexpr old-sym)
        (libspec-prefix? node node-sexpr old-sym)))))
@@ -120,8 +119,8 @@
       :default new-node)))
 
 (defn- ns-decl? [node]
-  (when-not (#{:uneval} (b/tag node))
-    (= 'ns (b/sexpr (z/down node)))))
+  (when-not (#{:uneval} (z/tag node))
+    (= 'ns (z/sexpr (z/down node)))))
 
 (def ^:const ns-form-placeholder (str "ns_" "form_" "placeholder"))
 
@@ -139,8 +138,8 @@
           [nil content])))))
 
 (defn- import? [node]
-  (when-not (#{:uneval} (b/tag node))
-    (when-let [node-sexpr (b/sexpr node)]
+  (when-not (#{:uneval} (z/tag node))
+    (when-let [node-sexpr (z/sexpr node)]
       (= :import node-sexpr))))
 
 (defn- ->new-import-node [old-sym new-sym old-node]
@@ -275,8 +274,8 @@
   (str/replace source-sans-ns symbol-regex (partial source-replacement old-sym new-sym)))
 
 (defn- after-platfrom-marker? [platform node]
-  (when-not (#{:uneval} (b/tag node))
-    (= platform (b/sexpr (z/left node)))))
+  (when-not (#{:uneval} (z/tag node))
+    (= platform (z/sexpr (z/left node)))))
 
 (defn- find-and-replace-platform-specific-subforms [platform ns-loc]
   (loop [loc         ns-loc
