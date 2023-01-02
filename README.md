@@ -2,6 +2,7 @@
 [![codecov](https://codecov.io/gh/benedekfazekas/mranderson/branch/master/graph/badge.svg?token=St3R9M1IgF)](https://codecov.io/gh/benedekfazekas/mranderson)
 [![Clojars Project](https://img.shields.io/clojars/v/thomasa/mranderson.svg)](https://clojars.org/thomasa/mranderson)
 [![cljdoc badge](https://cljdoc.org/badge/thomasa/mranderson)](https://cljdoc.org/d/thomasa/mranderson/CURRENT)
+[![Join chat](https://img.shields.io/badge/slack-join_chat-brightgreen.svg)](https://clojurians.slack.com/archives/C04HWRD2D32)
 
 # MrAnderson
 
