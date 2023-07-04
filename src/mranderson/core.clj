@@ -270,6 +270,11 @@
           files))
       by-ns)))
 
+(defn- order-by-extension
+  "Make sure that first clj and cljs files considered, cljc files only after them."
+  [clj-files]
+  (sort-by #(str/replace % ".cljc" ".cljx") clj-files))
+
 (defn- unzip-artifact! [{:keys [srcdeps]} {:keys [src-path branch]} dep]
   (let [art-name         (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
@@ -277,6 +282,7 @@
         _                (log/info "unzipping [" art-name-cleaned " [" art-version "]]")
         clj-files        (->> (unzip (-> dep meta :file) srcdeps)
                               (remove-invalid-duplicates! srcdeps)
+                              order-by-extension
                               (doall))
         clj-dirs         (u/clj-files->dirs srcdeps clj-files)]
     (log/debug (format "resolving transitive dependencies for %s:" art-name))
