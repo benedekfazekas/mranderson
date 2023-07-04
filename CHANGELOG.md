@@ -10,6 +10,7 @@
 - [fix [#49](https://github.com/benedekfazekas/mranderson/issues/49)] Options accepted from both CLI and the project map
 - [fix [#72](https://github.com/benedekfazekas/mranderson/issues/72)] Mranderson rewrites some clj/cljc files twice (instaparse)
 - [fix [#56](https://github.com/benedekfazekas/mranderson/issues/56)] Fix intermittent broken files when inlining
+- [fix [#90](https://github.com/benedekfazekas/mranderson/issues/90)] Fix spade/core.cljs not found
 
 ## Changes
 
