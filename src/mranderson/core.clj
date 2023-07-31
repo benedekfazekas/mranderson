@@ -307,7 +307,7 @@
 (defn- mranderson-unresolved-deps!
   "Unzips and transforms files in an unresolved dependency tree."
   [unresolved-deps-tree paths ctx]
-  (let [unresolved-deps-tree (t/evict-subtrees unresolved-deps-tree '#{org.clojure/clojure org.clojure/clojurescript})]
+  (let [unresolved-deps-tree (t/evict-subtrees unresolved-deps-tree '#{org.clojure/clojure org.clojure/clojurescript org.clojure/core.rrb-vector})]
     (log/info "in UNRESOLVED-TREE mode, working on an unresolved dependency tree")
     (t/walk-deps unresolved-deps-tree print-dep)
     (t/walk-dep-tree unresolved-deps-tree unzip-artifact! update-artifact! paths ctx)))
