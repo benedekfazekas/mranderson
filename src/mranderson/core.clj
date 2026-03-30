@@ -29,7 +29,8 @@
          entries (enumeration-seq (.entries zip))
          entry-pred (fn entry-pred [^java.util.zip.ZipEntry entry]
                       (not (or (.isDirectory entry)
-                               (str/includes? (str entry) "META-INF"))))]
+                               (str/includes? (str entry) "META-INF")
+                               (str/includes? (str entry) "clj-kondo.exports"))))]
      (doseq [entry entries
              :when (entry-pred entry)
              :let  [f (zip-target-file target-dir entry)]]
