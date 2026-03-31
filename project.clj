@@ -12,15 +12,15 @@
                     ;; https://saker.build/blog/javac_source_target_parameters/index.html / https://archive.md/JH260
                     ["--release" "8"])
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
-  :dependencies [^:inline-dep [clj-commons/pomegranate "1.2.1"]
-                 ^:inline-dep [org.clojure/tools.namespace "1.3.0"]
-                 ^:inline-dep [clj-commons/fs "1.6.310"]
-                 ^:inline-dep [rewrite-clj "1.1.45"]
+  :dependencies [^:inline-dep [clj-commons/pomegranate "1.2.25"]
+                 ^:inline-dep [org.clojure/tools.namespace "1.5.1"]
+                 ^:inline-dep [clj-commons/fs "1.6.312"]
+                 ^:inline-dep [rewrite-clj "1.2.54"]
                  [org.clojure/clojure "1.10.3" :scope "provided"]
                  [org.pantsbuild/jarjar "1.7.2"]]
   :mranderson {:project-prefix "mranderson.inlined"}
-  :profiles {:dev {:dependencies [[leiningen-core "2.9.10"]]}
-             :eastwood {:plugins [[jonase/eastwood "1.3.0"]]
+  :profiles {:dev {:dependencies [[leiningen-core "2.12.0"]]}
+             :eastwood {:plugins [[jonase/eastwood "1.4.3"]]
                         :eastwood {:exclude-linters [:no-ns-form-found]}}
              :mranderson-plugin {:plugins [[thomasa/mranderson ~project-version]]}
              ;; copy of plugin.mranderson/config profile, needed here so mrandersoned pom/jar can be built for mranderson itself
@@ -33,8 +33,8 @@
                                           :middleware [mranderson.plugin/middleware]
                                           :jar-exclusions [#"(?i)^META-INF/.*"]}
              :kaocha {:eval-in :sub-process
-                      :dependencies [[lambdaisland/kaocha "1.69.1069"]
-                                     [lambdaisland/kaocha-cloverage "1.0.75"]]}}
+                      :dependencies [[lambdaisland/kaocha "1.91.1392"]
+                                     [lambdaisland/kaocha-cloverage "1.1.89"]]}}
   :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]
             "kaocha-watch" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--watch"]
             "kaocha-coverage" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--plugin" "cloverage"]})
