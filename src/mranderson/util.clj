@@ -1,5 +1,6 @@
 (ns mranderson.util
-  (:require [clojure.java.io :as io]
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [me.raynes.fs :as fs]
             [clojure.set :as s]
@@ -50,14 +51,14 @@
        (map #(.getCanonicalFile ^File %))))
 
 (defn class-files []
-  (->> "target/srcdeps"
-       io/file
-       (#(.listFiles ^File %))
-       (filter #(.isDirectory ^File %))
-       (mapcat file-seq)
-       (filterv (fn [^File file]
-                  (and (.isFile file)
-                       (.endsWith (.getName file) ".class"))))))
+  (let [dir (io/file "target/srcdeps")
+        subdirs (some-> (.listFiles ^File dir) seq)]
+    (->> subdirs
+         (filter #(.isDirectory ^File %))
+         (mapcat file-seq)
+         (filterv (fn [^File file]
+                    (and (.isFile file)
+                         (.endsWith (.getName file) ".class")))))))
 
 (defn class-file->fully-qualified-name [file]
   (->> (-> file
@@ -116,7 +117,7 @@
 (defn mranderson-version []
   (let [v (-> (io/resource "mranderson/project.clj")
               slurp
-              read-string
+              edn/read-string
               (nth 2))]
     (assert (string? v)
             (str "Something went wrong, version is not a string: " v))

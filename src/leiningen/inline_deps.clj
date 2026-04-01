@@ -29,7 +29,7 @@
         skip-repackage-java-classes (lookup-opt :skip-javaclass-repackage cli-opts mranderson)
         prefix-exclusions           (lookup-opt :prefix-exclusions cli-opts mranderson)
         srcdeps-relative            (str (apply str (drop (inc (count root)) target-path)) "/srcdeps")
-        project-source-dirs         (filter fs/directory? (.listFiles (fs/file (str target-path "/srcdeps/"))))]
+        project-source-dirs         (filter fs/directory? (or (.listFiles (fs/file (str target-path "/srcdeps/"))) []))]
     (log/debug "skip repackage" skip-repackage-java-classes)
     (log/debug "project mranderson" (prn-str mranderson))
     (log/info "project prefix: " project-prefix)

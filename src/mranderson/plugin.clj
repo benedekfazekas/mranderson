@@ -4,8 +4,8 @@
 
 (defn- find-gen-class-ns [found file]
   (let [ns-decl (read-file-ns-decl file)]
-    (if (.contains ^String (apply str ns-decl) ":gen-class")
-      (conj found (-> file read-file-ns-decl second))
+    (if (and ns-decl (.contains ^String (apply str ns-decl) ":gen-class"))
+      (conj found (second ns-decl))
       found)))
 
 (defn middleware
