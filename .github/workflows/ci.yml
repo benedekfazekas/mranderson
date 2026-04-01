@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        jdk: [8, 11, 17]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK ${{ matrix.jdk }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.jdk }}
+
+      - name: Install Leiningen
+        uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          lein: latest
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ hashFiles('project.clj') }}
+          restore-keys: m2-
+
+      - name: Install dependencies
+        run: lein deps
+
+      - name: Run tests
+        run: lein test
+
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: Integration tests
+        run: scripts/integration_test.sh
+
+      - name: Lint
+        run: lein with-profile +eastwood eastwood
+
+      - name: Coverage
+        run: lein kaocha-coverage --codecov
+
+      - name: Upload coverage
+        if: matrix.jdk == 11
+        uses: codecov/codecov-action@v5
+        with:
+          files: target/coverage/codecov.json
+          token: ${{ secrets.CODECOV_TOKEN }}
