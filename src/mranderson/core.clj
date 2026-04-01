@@ -25,23 +25,25 @@
   ([source]
    (unzip source (name source)))
   ([source target-dir]
-   (let [zip (ZipFile. (fs/file source))
-         entries (enumeration-seq (.entries zip))
-         entry-pred (fn entry-pred [^java.util.zip.ZipEntry entry]
-                      (not (or (.isDirectory entry)
-                               (str/includes? (str entry) "META-INF")
-                               (str/includes? (str entry) "clj-kondo.exports"))))]
-     (doseq [entry entries
-             :when (entry-pred entry)
-             :let  [f (zip-target-file target-dir entry)]]
-       (fs/mkdirs (fs/parent f))
-       (io/copy (.getInputStream zip entry) f))
-     (->> entries
-          (filter entry-pred)
-          (map #(.getName ^ZipEntry %))
-          (filter #(or (.endsWith ^String % ".clj")
-                       (.endsWith ^String % ".cljc")
-                       (.endsWith ^String % ".cljs")))))))
+   (with-open [zip (ZipFile. (fs/file source))]
+     (let [entries (enumeration-seq (.entries zip))
+           entry-pred (fn entry-pred [^java.util.zip.ZipEntry entry]
+                        (not (or (.isDirectory entry)
+                                 (str/includes? (str entry) "META-INF")
+                                 (str/includes? (str entry) "clj-kondo.exports"))))
+           clj-files (transient [])]
+       (doseq [entry entries
+               :when (entry-pred entry)
+               :let  [f (zip-target-file target-dir entry)
+                       entry-name (.getName ^ZipEntry entry)]]
+         (fs/mkdirs (fs/parent f))
+         (with-open [in (.getInputStream zip entry)]
+           (io/copy in f))
+         (when (or (.endsWith ^String entry-name ".clj")
+                   (.endsWith ^String entry-name ".cljc")
+                   (.endsWith ^String entry-name ".cljs"))
+           (conj! clj-files entry-name)))
+       (persistent! clj-files)))))
 
 (defn- cljfile->prefix [clj-file]
   (->> (str/split clj-file #"/")
@@ -53,9 +55,8 @@
        (map cljfile->prefix)
        (remove #(str/blank? %))
        (remove #(= "clojure.core" %))
-       (reduce #(if (%1 %2) (assoc %1 %2 (inc (%1 %2))) (assoc %1 %2 1) ) {})
-                                        ;(filter #(< 1 (val %)))
-       (map first)
+       frequencies
+       keys
        (map #(str/replace % "_" "-"))))
 
 (defn- replacement-prefix [pprefix src-path art-name art-version underscorize?]
@@ -102,12 +103,19 @@
                     :default (recur (rest ns-decl-fragment) (inc index-of-open-bracket)))) clj-source))))
 
 (defn- import-fragment [clj-source]
-  (let [import-fragment-left (import-fragment-left clj-source)]
-    (when (and import-fragment-left (> (count import-fragment-left) 0))
+  (let [import-fragment-left (import-fragment-left clj-source)
+        frag-count (count import-fragment-left)]
+    (when (and import-fragment-left (> frag-count 0))
       (loop [index 1
              open-close 0]
-        (if (> open-close 0)
+        (cond
+          (> open-close 0)
           (apply str (take index import-fragment-left))
+
+          (>= index frag-count)
+          nil
+
+          :else
           (recur (inc index) (cond (= \( (nth import-fragment-left index))
                                    (dec open-close)
 
@@ -123,11 +131,11 @@
       [file import-fragment])))
 
 (defn- find-orig-import [imports file]
-  (or (loop [imps imports]
-        (let [imp (first imps)]
-          (if (.endsWith (str file) (str (first imp)))
-            (second imp)
-            (recur (rest imps))))) ""))
+  (or (->> imports
+           (some (fn [[imp-file imp-fragment]]
+                   (when (.endsWith (str file) (str imp-file))
+                     imp-fragment))))
+      ""))
 
 (defn- class-deps-jar!
   "creates jar containing the deps class files"

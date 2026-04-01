@@ -273,14 +273,14 @@
 (defn- replace-in-source [source-sans-ns old-sym new-sym]
   (str/replace source-sans-ns symbol-regex (partial source-replacement old-sym new-sym)))
 
-(defn- after-platfrom-marker? [platform node]
+(defn- after-platform-marker? [platform node]
   (when-not (#{:uneval} (z/tag node))
     (= platform (z/sexpr (z/left node)))))
 
 (defn- find-and-replace-platform-specific-subforms [platform ns-loc]
   (loop [loc         ns-loc
          found-nodes []]
-    (if-let [found-node (z/find-next-depth-first loc (partial after-platfrom-marker? platform))]
+    (if-let [found-node (z/find-next-depth-first loc (partial after-platform-marker? platform))]
       (recur (z/replace found-node (symbol (str (name platform) "_require"))) (conj found-nodes found-node))
       [found-nodes (z/of-node (z/root loc))])))
 
@@ -333,9 +333,10 @@
       (io/copy old-file new-file)
       (.delete old-file)
       (loop [dir (.getParentFile old-file)]
-        (when (empty? (.listFiles dir))
-          (.delete dir)
-          (recur (.getParentFile dir)))))
+        (when-let [files (.listFiles dir)]
+          (when (empty? files)
+            (.delete dir)
+            (recur (.getParentFile dir))))))
     (throw (FileNotFoundException. (format "file for %s not found in %s" old-sym source-path)))))
 
 (def ^:private pmap-runner
