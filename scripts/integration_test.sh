@@ -11,7 +11,7 @@ git submodule update --init --recursive
 # cider-nrepl observes CI, which triggers :pedantic?, which is irrelevant here:
 unset CI
 
-cd .circleci/cider-nrepl
+cd test-resources/cider-nrepl
 lein clean
 # Undo the patch if it was applied already:
 git checkout project.clj
