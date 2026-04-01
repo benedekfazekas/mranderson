@@ -44,10 +44,10 @@ jobs:
         run: lein test
 
       - name: Shellcheck
-        run: shellcheck .circleci/*.sh
+        run: shellcheck scripts/*.sh
 
       - name: Integration tests
-        run: .circleci/integration_test.sh
+        run: scripts/integration_test.sh
 
       - name: Lint
         run: lein with-profile +eastwood eastwood

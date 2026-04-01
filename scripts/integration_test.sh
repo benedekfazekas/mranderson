@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuxo pipefail
-cd "${BASH_SOURCE%/*}"
+cd "$(git rev-parse --show-toplevel)"
 
 # An integration test that exercises that cider-nrepl and refactor-nrepl can successfully use mranderson @ latest.
 # For that, we both build those projects with mranderson in them, and run their mrandersonized test suites.
 
-cd ..
 make install
 git submodule update --init --recursive
 
@@ -16,7 +15,7 @@ cd .circleci/cider-nrepl
 lein clean
 # Undo the patch if it was applied already:
 git checkout project.clj
-git apply ../update-mranderson.patch
+git apply ../../scripts/update-mranderson.patch
 lein with-profile -user,-dev inline-deps
 lein with-profile -user,-dev,+1.10,+test,+plugin.mranderson/config test
 # Leave `git status` clean for local development:
@@ -26,7 +25,7 @@ cd ../refactor-nrepl
 lein clean
 # Undo the patch if it was applied already:
 git checkout project.clj
-git apply ../update-mranderson-in-refactor-nrepl.patch
+git apply ../../scripts/update-mranderson-in-refactor-nrepl.patch
 make test
 # Leave `git status` clean for local development:
 git checkout project.clj
