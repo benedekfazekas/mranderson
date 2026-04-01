@@ -19,7 +19,7 @@ test:
 	lein test
 
 integration-test:
-	.circleci/integration_test.sh
+	scripts/integration_test.sh
 
 deploy: .inline
 	lein with-profile -user,-dev,+mranderson-profile deploy clojars
