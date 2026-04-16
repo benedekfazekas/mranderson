@@ -13,19 +13,9 @@ unset CI
 
 cd test-resources/cider-nrepl
 lein clean
-# Undo the patch if it was applied already:
-git checkout project.clj
-git apply ../../scripts/update-mranderson.patch
 lein with-profile -user,-dev inline-deps
 lein with-profile -user,-dev,+1.10,+test,+plugin.mranderson/config test
-# Leave `git status` clean for local development:
-git checkout project.clj
 
 cd ../refactor-nrepl
 lein clean
-# Undo the patch if it was applied already:
-git checkout project.clj
-git apply ../../scripts/update-mranderson-in-refactor-nrepl.patch
 make test
-# Leave `git status` clean for local development:
-git checkout project.clj
