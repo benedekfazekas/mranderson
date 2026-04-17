@@ -23,6 +23,11 @@
 - Simplify internal threading setup
 - [fix [#58](https://github.com/benedekfazekas/mranderson/issues/58)] Offer a new `:included-source-paths` option, which is described in the README.
 - use `org.pantsbuild.jarjar:1.7.2` instead of `jarjar:1.3`. Also abandoned but still an upgrade
+- exclude `clj-kondo.exports` from jar extraction by @bbatsov
+- migrate from cricleci to github actions by @bbatsov
+- dependency upgrades by @bbatsov
+- fix minor code issues by @bbatsov
+- Update cider-nrepl submodule and mark integration tests as soft failures by @bbatsov
 
 ## 0.5.3
 
