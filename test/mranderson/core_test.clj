@@ -1,6 +1,7 @@
 (ns mranderson.core-test
   (:require [mranderson.core :as sut]
             [mranderson.test :refer [with-mranderson]]
+            [mranderson.util :as util]
             [clojure.java.io :as io]
             [clojure.string :as string]
             [clojure.test :refer [deftest testing is]]
@@ -111,3 +112,62 @@
 
         (finally
           (cleanup!))))))
+
+(defn- temp-dir [prefix]
+  (doto (File/createTempFile prefix "")
+    (.delete)
+    (.mkdirs)))
+
+(deftest t-inline-deps
+  (let [src    (temp-dir "mranderson-inline-src")
+        target (temp-dir "mranderson-inline-target")
+        main   (io/file src "mrt" "main.clj")]
+    (try
+      (.mkdirs (.getParentFile main))
+      (spit main "(ns mrt.main (:require [riddley.walk :as rw]))")
+      (let [prefix  (sut/inline-deps
+                     {:dependencies                '[[riddley "0.1.12"]]
+                      :source-paths                [(str src)]
+                      :target-path                 (str target)
+                      :project-prefix              "mranderson.inline.test"
+                      :skip-repackage-java-classes true})
+            srcdeps (io/file target "srcdeps")]
+
+        (testing "returns the resolved project prefix"
+          (is (= "mranderson.inline.test" prefix)))
+
+        (testing "the inlined dependency is shadowed under the prefix"
+          (let [walk (io/file srcdeps "mranderson" "inline" "test"
+                              "riddley" "v0v1v12" "riddley" "walk.clj")]
+            (is (.exists walk))
+            (is (string/starts-with?
+                 (slurp walk)
+                 "(ns ^{:mranderson/inlined true} mranderson.inline.test.riddley.v0v1v12.riddley.walk"))))
+
+        (testing "references in the project's own sources are rewritten"
+          (let [copied (io/file srcdeps "mrt" "main.clj")]
+            (is (.exists copied))
+            (is (string/includes?
+                 (slurp copied)
+                 "mranderson.inline.test.riddley.v0v1v12.riddley.walk")))))
+      (finally
+        (fs/delete-dir src)
+        (fs/delete-dir target)))))
+
+(deftest t-inline-deps-generates-a-prefix-when-none-is-given
+  (let [src    (temp-dir "mranderson-inline-src")
+        target (temp-dir "mranderson-inline-target")
+        main   (io/file src "mrt" "main.clj")]
+    (try
+      (.mkdirs (.getParentFile main))
+      (spit main "(ns mrt.main (:require [riddley.walk :as rw]))")
+      (let [prefix (sut/inline-deps
+                    {:dependencies                '[[riddley "0.1.12"]]
+                     :source-paths                [(str src)]
+                     :target-path                 (str target)
+                     :skip-repackage-java-classes true})]
+        (is (string/starts-with? prefix "mranderson"))
+        (is (.exists (io/file target "srcdeps" (util/sym->file-name prefix)))))
+      (finally
+        (fs/delete-dir src)
+        (fs/delete-dir target)))))

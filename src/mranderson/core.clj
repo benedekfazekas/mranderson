@@ -376,3 +376,109 @@
       (class-deps-jar!)
       (u/apply-jarjar! pname pversion)
       (replace-class-deps!))))
+
+(def default-repositories
+  "Maven repositories used to resolve dependencies when none are supplied."
+  [["central" {:url "https://repo1.maven.org/maven2/" :snapshots false}]
+   ["clojars" {:url "https://repo.clojars.org/"}]])
+
+(defn- default-project-prefix []
+  (str "mranderson" (subs (str (UUID/randomUUID)) 0 8)))
+
+(defn- mark-inline
+  "Every entry in `:dependencies` is meant to be inlined, so tag each coordinate
+  with the `^:inline-dep` meta that `mranderson` filters on. This spares callers
+  from having to remember the meta tag (which is also awkward to express via the
+  CLI)."
+  [dependencies]
+  (mapv #(vary-meta % assoc :inline-dep true) dependencies))
+
+(defn inline-deps
+  "Inline and shadow `:dependencies` so they cannot interfere with the
+  dependencies of downstream consumers.
+
+  This is the Leiningen-free counterpart of the `leiningen.inline-deps` plugin
+  task: it takes a plain options map instead of a Leiningen project map, which
+  makes it usable from a `tools.build` build script:
+
+      (require '[mranderson.core :as mranderson])
+      (mranderson/inline-deps
+       {:project-prefix \"com.example.inlined\"
+        :source-paths   [\"src\"]
+        :dependencies   '[[org.clojure/tools.namespace \"1.5.1\"]]})
+
+  or directly as a Clojure CLI tool function (`clojure -T:mranderson inline-deps`).
+
+  The project's own `:source-paths` and the resolved dependency sources are
+  copied into `<target-path>/srcdeps`, with the dependency namespaces (and
+  references to them, including those in the project's own sources) rewritten
+  under `:project-prefix`.
+
+  Options:
+
+  - `:dependencies`    (required) vector of `[lib version & kvs]` coordinates to
+                       inline. Every entry is treated as an inline dep, so there
+                       is no need to attach `^:inline-dep` meta yourself.
+  - `:source-paths`    (required) the project's own source directories to copy
+                       into `srcdeps` and rewrite.
+  - `:project-prefix`  namespace/path prefix for the shadowed deps. Defaults to a
+                       random `mranderson<hex>` prefix; set a stable value for
+                       reproducible output.
+  - `:target-path`     build target directory. Defaults to `\"target\"`; output is
+                       written to `<target-path>/srcdeps`.
+  - `:repositories`    Maven repositories used for resolution. Defaults to Maven
+                       Central and Clojars (see `default-repositories`).
+  - `:pname`           project name, used when repackaging bundled Java classes.
+                       Defaults to `\"mranderson\"`.
+  - `:pversion`        project version, used when repackaging bundled Java
+                       classes. Defaults to `\"0.0.0\"`.
+  - `:skip-repackage-java-classes` skip jarjar repackaging of bundled `.class`
+                       files. Defaults to `false`.
+  - `:prefix-exclusions` seq of prefixes to leave untouched when rewriting Java
+                       imports.
+  - `:unresolved-tree` use unresolved-tree mode (deeply nested isolation).
+                       Defaults to `false`.
+  - `:overrides`       overrides for unresolved-tree mode.
+  - `:expositions`     transitive deps to expose to the project's sources in
+                       unresolved-tree mode.
+  - `:watermark`       meta key marking inlined namespaces. Defaults to
+                       `:mranderson/inlined`.
+
+  Returns the resolved project prefix (handy when it was generated)."
+  [{:keys [dependencies source-paths project-prefix target-path repositories
+           pname pversion skip-repackage-java-classes prefix-exclusions
+           unresolved-tree overrides expositions watermark]
+    :or   {target-path                 "target"
+           repositories                default-repositories
+           pname                       "mranderson"
+           pversion                    "0.0.0"
+           skip-repackage-java-classes false
+           unresolved-tree             false
+           watermark                   :mranderson/inlined}}]
+  (assert (seq dependencies) ":dependencies must be a non-empty collection")
+  (assert (seq source-paths) ":source-paths must be a non-empty collection")
+  (let [target-path (str target-path)
+        pprefix     (or (some-> project-prefix name) (default-project-prefix))]
+    ;; The project's own sources have to live next to the inlined deps so that
+    ;; their references can be rewritten too.
+    (copy-source-files source-paths target-path)
+    (let [srcdeps             (str target-path "/srcdeps")
+          ;; At this point srcdeps only holds the copied project sources; the
+          ;; prefix dir for the deps does not exist yet.
+          project-source-dirs (filter fs/directory? (or (.listFiles (io/file srcdeps)) []))
+          ctx                 {:pname                       pname
+                               :pversion                    (str pversion)
+                               :pprefix                     pprefix
+                               :skip-repackage-java-classes skip-repackage-java-classes
+                               :srcdeps                     srcdeps
+                               :prefix-exclusions           prefix-exclusions
+                               :project-source-dirs         project-source-dirs
+                               :unresolved-tree             unresolved-tree
+                               :overrides                   overrides
+                               :expositions                 expositions
+                               :watermark                   watermark}
+          paths               {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
+                               :parent-clj-dirs []
+                               :branch          []}]
+      (mranderson repositories (mark-inline dependencies) ctx paths)
+      pprefix)))
