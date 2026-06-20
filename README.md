@@ -53,6 +53,49 @@ Release to clojars
 
 Alternatively the modified dependencies and project files can be copied back to the source tree and stored in version control. In this case you don't need the above mentioned built in leiningen profile.
 
+### Using MrAnderson without Leiningen (tools.deps / tools.build)
+
+You don't need Leiningen to run MrAnderson. The `mranderson.core/inline-deps`
+function is a plain, data-driven entry point that does the same work as the
+`lein inline-deps` task. It's handy when your project is built with
+[tools.build](https://clojure.org/guides/tools_build).
+
+Add MrAnderson to a build alias in `deps.edn`:
+
+```clojure
+{:aliases
+ {:build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.10"}
+                 thomasa/mranderson {:mvn/version "0.5.4"}}
+          :ns-default build}}}
+```
+
+and call it from your `build.clj`:
+
+```clojure
+(ns build
+  (:require [mranderson.core :as mranderson]))
+
+(defn inline-deps [_]
+  (mranderson/inline-deps
+   {:project-prefix "com.example.inlined"
+    :source-paths   ["src"]
+    :dependencies   '[[org.clojure/tools.namespace "1.5.1"]
+                      [org.clojure/tools.reader "1.6.0"]]}))
+```
+
+Unlike the Leiningen plugin, every coordinate in `:dependencies` is inlined, so
+there's no need to tag them with `^:inline-dep`. The shadowed sources land in
+`target/srcdeps`, which you then put on the classpath when building your jar.
+
+`inline-deps` doubles as a Clojure CLI tool function, so you can also invoke it
+directly:
+
+```
+clojure -T:build inline-deps
+```
+
+See the docstring of `mranderson.core/inline-deps` for the full list of options.
+
 ## Config and options
 
 ### Two modes: resolved tree and unresolved tree
