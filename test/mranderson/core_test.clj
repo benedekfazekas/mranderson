@@ -370,3 +370,51 @@
       (finally
         (fs/delete-dir src)
         (fs/delete-dir target)))))
+
+;; ## Unit coverage for small, previously-untested helpers
+
+(def ^:private replacement #'sut/replacement)
+(def ^:private update-path-in-file #'sut/update-path-in-file)
+(def ^:private remove-invalid-duplicates! #'sut/remove-invalid-duplicates!)
+
+(deftest t-replacement
+  (testing "joins prefix and postfix into a fully-qualified namespace symbol"
+    (is (= 'mrt.instaparse.v1v4v12.instaparse.core
+           (replacement "mrt.instaparse.v1v4v12" 'instaparse.core nil))))
+  (testing "underscorizes dashes in the postfix only when asked (java package form)"
+    (is (= 'mrt.foo_bar.baz (replacement "mrt" 'foo-bar.baz true)))
+    (is (= 'mrt.foo-bar.baz (replacement "mrt" 'foo-bar.baz nil)))))
+
+(deftest t-update-path-in-file
+  (let [dir (temp-dir "mranderson-update-path")
+        f   (io/file dir "a.clj")]
+    (try
+      (spit f "(load \"old/path/thing\") ; see old/path/thing")
+      (update-path-in-file f "old/path/thing" "new/prefixed/thing")
+      (is (= "(load \"new/prefixed/thing\") ; see new/prefixed/thing" (slurp f))
+          "every occurrence of the old path is replaced")
+      (testing "a file without the path is left untouched"
+        (spit f "(ns unrelated)")
+        (update-path-in-file f "old/path/thing" "new/prefixed/thing")
+        (is (= "(ns unrelated)" (slurp f))))
+      (finally (fs/delete-dir dir)))))
+
+(deftest t-remove-invalid-duplicates
+  ;; #44: a dependency ships the same namespace in two places; keep the file
+  ;; whose path matches its ns, delete the misplaced duplicate.
+  (let [dir (temp-dir "mranderson-dupes")]
+    (try
+      (spit (doto (io/file dir "riddley" "compiler.clj") (-> .getParentFile .mkdirs))
+            "(ns riddley.compiler)")
+      ;; a misplaced duplicate of the same ns at the package root
+      (spit (io/file dir "compiler.clj") "(ns riddley.compiler)")
+      ;; an unrelated, unique file
+      (spit (io/file dir "other.clj") "(ns other)")
+      (let [kept (set (remove-invalid-duplicates! dir ["riddley/compiler.clj" "compiler.clj" "other.clj"]))]
+        (testing "the misplaced duplicate is deleted from disk"
+          (is (not (.exists (io/file dir "compiler.clj")))))
+        (testing "the correctly-located file survives on disk"
+          (is (.exists (io/file dir "riddley" "compiler.clj"))))
+        (testing "returns the surviving files (correctly-placed dup + the unique one)"
+          (is (= #{"riddley/compiler.clj" "other.clj"} kept))))
+      (finally (fs/delete-dir dir)))))
