@@ -188,6 +188,36 @@
          (map (partial str "target/srcdeps/")))
     []))
 
+(defn- prefix-occurrences
+  "Prefixes each token in `tokens` with `cleaned-name-version` wherever it occurs
+  in `s` and is not already preceded by a dot (so an occurrence that is already
+  part of a longer, prefixed name is left alone)."
+  [s tokens cleaned-name-version]
+  (reduce (fn [acc token]
+            (str/replace acc
+                         (re-pattern (str "([^\\.])" token))
+                         (str "$1" cleaned-name-version "." token)))
+          s
+          tokens))
+
+(defn- rewrite-java-imports
+  "Rewrites `content` so references to repackaged Java classes are prefixed with
+  `cleaned-name-version`. Inside the `(:import …)` fragment (`orig-import`) the
+  classes are listed bare under their package, so packages are prefixed there;
+  in the rest of the file classes appear fully qualified, so the exact class
+  names are prefixed. The import fragment is swapped out for a placeholder while
+  the body is rewritten so it isn't processed twice. Returns `content` unchanged
+  when `orig-import` is blank."
+  [content orig-import class-names package-names cleaned-name-version]
+  (if (str/blank? orig-import)
+    content
+    (let [new-import (prefix-occurrences orig-import package-names cleaned-name-version)
+          uuid       (str (UUID/randomUUID))]
+      (-> content
+          (str/replace orig-import uuid)
+          (prefix-occurrences class-names cleaned-name-version)
+          (str/replace uuid new-import)))))
+
 (defn- prefix-dependency-imports! [pname pversion pprefix prefix src-path srcdeps]
   (let [cleaned-name-version (u/clean-name-version pname pversion)
         prefix (some-> (first prefix)
@@ -213,13 +243,9 @@
       (doseq [file clj-files]
         (let [old         (slurp (fs/file file))
               orig-import (find-orig-import imports file)
-              new-import  (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) orig-import package-names)
-              uuid        (str (UUID/randomUUID))
-              new         (str/replace old orig-import uuid)
-              new         (reduce #(str/replace %1 (re-pattern (str "([^\\.])" %2)) (str "$1" cleaned-name-version "." %2)) new class-names)
-              new         (str/replace new uuid new-import)]
+              new         (rewrite-java-imports old orig-import class-names package-names cleaned-name-version)]
           (when-not (= old new)
-            (log/debug "file: " file " orig import:" orig-import " new import:" new-import)
+            (log/debug "file: " file " orig import:" orig-import " new import:" (prefix-occurrences orig-import package-names cleaned-name-version))
             (spit file new))))
       (log/info "    prefixing imports: done"))))
 
