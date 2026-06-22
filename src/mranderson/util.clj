@@ -34,17 +34,6 @@
       (str/replace "-" "_")
       (str/replace "." File/separator)))
 
-(defn relevant-clj-dep-path [srcdeps src-path prefix pprefix]
-  (let [pprefix-path-frag (sym->file-name pprefix)
-        srcdeps-root      (str srcdeps "/")]
-    (if-not (str/ends-with? src-path pprefix-path-frag)
-      (vector (str srcdeps-root
-                   pprefix-path-frag
-                   (-> src-path
-                       (str/split (re-pattern pprefix-path-frag))
-                       last)))
-      [(str srcdeps-root prefix)])))
-
 (defn clojure-source-files [dirs]
   (->> dirs
        clojure-source-files-relative
@@ -77,11 +66,6 @@
            (str/split #"\.")
            first
            (str/split #"/"))
-       (str/join ".")))
-
-(defn class-name->package-name [class-name]
-  (->> (str/split class-name #"\.")
-       butlast
        (str/join ".")))
 
 (defn java-class-dirs
