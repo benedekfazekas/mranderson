@@ -265,6 +265,24 @@ MrAnderson is tested and supported on Linux and macOS. Windows systems are not s
 - [iced-nrepl](https://github.com/liquidz/iced-nrepl)
 - [conjure](https://github.com/Olical/conjure) via [conjure-deps](https://github.com/Olical/conjure-deps) -- uses MrAnderson directly, not as a `leiningen` plugin
 
+## Development
+
+MrAnderson is a bit unusual to build because it inlines its own dependencies
+using itself, so it depends on itself as a Leiningen plugin. The `Makefile`
+wraps the moving parts:
+
+- `make test` runs the unit tests.
+- `make integration-test` runs the integration tests (against `cider-nrepl` and
+  `refactor-nrepl`, see `scripts/integration_test.sh`).
+- `make bootstrap-install` installs MrAnderson to your local maven repository
+  *without* inlining, which is needed to satisfy the self-dependency on the
+  plugin.
+- `make inline` bootstraps and then produces an inlined build under
+  `target/srcdeps`.
+- `make install` installs an inlined MrAnderson to your local maven repository,
+  so other projects on your machine can depend on it.
+- `make deploy` deploys an inlined release to Clojars.
+
 ## Related project
 
 A really nice wrapper of mranderson can be found [here](https://github.com/xsc/lein-isolate).
