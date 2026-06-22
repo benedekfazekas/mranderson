@@ -253,8 +253,14 @@
                                    "(:import com.example.Widget)"
                                    ["com.example.Widget"] prefix))))
 
-    (testing "a blank import fragment leaves the content untouched"
-      (is (= "(ns foo)" (rewrite-java-imports "(ns foo)" "" ["com.example.Widget"] prefix))))
+    (testing "#97: a repackaged class referenced in the body is prefixed even with no :import form"
+      (is (= "(ns foo)\n(defn make [] (mrt010.com.example.Widget. 1))"
+             (rewrite-java-imports "(ns foo)\n(defn make [] (com.example.Widget. 1))"
+                                   "" ["com.example.Widget"] prefix)))
+      (testing "but a class that isn't repackaged is left alone"
+        (is (= "(ns foo)\n(defn make [] (com.example.Widget. 1))"
+               (rewrite-java-imports "(ns foo)\n(defn make [] (com.example.Widget. 1))"
+                                     "" ["com.other.Thing"] prefix)))))
 
     (testing "every class in a prefix-list is repackaged: the package is prefixed, no split"
       (is (= "(ns foo\n  (:import [mrt010.com.example Widget Gadget]))"
