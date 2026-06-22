@@ -24,7 +24,6 @@ import org.pantsbuild.jarjar.PatternElement;
 import org.pantsbuild.jarjar.Rule;
 import org.pantsbuild.jarjar.util.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
@@ -32,9 +31,8 @@ public class JjMainProcessor implements JarProcessor
 {
     private final boolean verbose;
     private final JarProcessorChain chain;
-    private final Map<String, String> renames = new HashMap<String, String>();
 
-    public JjMainProcessor(List<PatternElement> patterns, boolean verbose, boolean skipManifest) {
+    public JjMainProcessor(List<PatternElement> patterns, boolean verbose) {
         this.verbose = verbose;
         List<Rule> ruleList = new ArrayList<Rule>();
         for (PatternElement pattern : patterns) {
@@ -48,20 +46,6 @@ public class JjMainProcessor implements JarProcessor
         List<JarProcessor> processors = new ArrayList<JarProcessor>();
         processors.add(new JarTransformerChain(new RemappingClassTransformer[]{ new RemappingClassTransformer(pr) }));
         chain = new JarProcessorChain(processors.toArray(new JarProcessor[processors.size()]));
-    }
-
-    public void strip(File file) throws IOException {
-        return;
-    }
-
-    /**
-     * Returns the <code>.class</code> files to delete. As well the root-parameter as the rename ones
-     * are taken in consideration, so that the concerned files are not listed in the result.
-     *
-     * @return the paths of the files in the jar-archive, including the <code>.class</code> suffix
-     */
-    private Set<String> getExcludes() {
-        return new HashSet<String>();
     }
 
     /**

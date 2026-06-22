@@ -1,6 +1,5 @@
 (ns mranderson.util
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [me.raynes.fs :as fs]
             [clojure.set :as s]
@@ -119,19 +118,10 @@
   (let [java-dirs (java-class-dirs srcdeps)
         name-version (clean-name-version pname pversion)
         rules (map (partial create-rule name-version) java-dirs)
-        processor (JjMainProcessor. rules false false)
+        processor (JjMainProcessor. rules false)
         jar-file (io/file jar-file)]
     (log/info (format "prefixing %s in %s with %s" java-dirs jar-file name-version))
     (StandaloneJarProcessor/run jar-file jar-file processor)))
-
-(defn mranderson-version []
-  (let [v (-> (io/resource "mranderson/project.clj")
-              slurp
-              edn/read-string
-              (nth 2))]
-    (assert (string? v)
-            (str "Something went wrong, version is not a string: " v))
-    v))
 
 (defn file->extension
   [file]
