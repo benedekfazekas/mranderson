@@ -47,19 +47,6 @@
            (conj! clj-files entry-name)))
        (persistent! clj-files)))))
 
-(defn- cljfile->prefix [clj-file]
-  (->> (str/split clj-file #"/")
-       butlast
-       (str/join ".")))
-
-(defn- possible-prefixes [clj-files]
-  (->> clj-files
-       (map cljfile->prefix)
-       (remove #(str/blank? %))
-       (remove #(= "clojure.core" %))
-       distinct
-       (map #(str/replace % "_" "-"))))
-
 (defn- replacement-prefix [pprefix src-path art-name art-version underscorize?]
   (let [path (->> (str/split (str src-path) #"/")
                   (drop-while #(not= (-> (u/sym->file-name pprefix)
@@ -125,19 +112,6 @@
 
                                    :else open-close)))))))
 
-(defn- retrieve-import [file-prefix file]
-  (let [cont (slurp (fs/file file-prefix file))
-        import-fragment (import-fragment cont)]
-    (when-not (str/blank? import-fragment)
-      [file import-fragment])))
-
-(defn- find-orig-import [imports file]
-  (or (->> imports
-           (some (fn [[imp-file imp-fragment]]
-                   (when (.endsWith (str file) (str imp-file))
-                     imp-fragment))))
-      ""))
-
 (defn- class-deps-jar!
   "creates `jar-file` containing the class files found under `srcdeps`"
   [srcdeps jar-file]
@@ -180,13 +154,6 @@
     (log/info "  " class-dir " class files deleted"))
   (log/info "unzipping repackaged" (str jar-file) "into" (str srcdeps))
   (unzip (fs/file jar-file) (fs/file srcdeps)))
-
-(defn- filter-clj-files [imports package-names srcdeps]
-  (if (seq package-names)
-    (->> (filter (fn [[_ import]] (some #(str/includes? import %) package-names)) imports)
-         (map first)
-         (map (partial str srcdeps "/")))
-    []))
 
 (defn- prefix-occurrences
   "Prefixes each token in `tokens` with `cleaned-name-version` wherever it occurs
@@ -261,37 +228,6 @@
           (prefix-occurrences class-names cleaned-name-version)
           (str/replace uuid new-import)))))
 
-(defn- prefix-dependency-imports! [pname pversion pprefix prefix src-path srcdeps]
-  (let [cleaned-name-version (u/clean-name-version pname pversion)
-        prefix (some-> (first prefix)
-                       (str/replace "-" "_")
-                       (str/replace "." "/"))
-        clj-dep-path (u/relevant-clj-dep-path srcdeps src-path prefix pprefix)
-        clj-files (u/clojure-source-files-relative clj-dep-path)
-        imports (->> clj-files
-                     (reduce #(conj %1 (retrieve-import srcdeps (u/srcdeps-relative srcdeps %2))) [])
-                     (remove nil?)
-                     doall)
-        class-names (map (partial u/class-file->fully-qualified-name srcdeps) (u/class-files srcdeps))
-        package-names (->> class-names
-                           (map u/class-name->package-name)
-                           set)
-        clj-files (filter-clj-files imports package-names srcdeps)]
-    (when (seq clj-files)
-      (log/info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))
-      (log/debug "      class-names" class-names)
-      (log/debug "      package-names" package-names)
-      (log/debug "      imports" imports)
-      (log/debug "      clj files" (str/join ":" clj-files))
-      (doseq [file clj-files]
-        (let [old         (slurp (fs/file file))
-              orig-import (find-orig-import imports file)
-              new         (rewrite-java-imports old orig-import class-names cleaned-name-version)]
-          (when-not (= old new)
-            (log/debug "file: " file " orig import:" orig-import " new:" new)
-            (spit file new))))
-      (log/info "    prefixing imports: done"))))
-
 (defn- import-excluded?
   "True if `file`'s path (relative to `srcdeps`) falls under one of the
   `prefix-exclusions` packages, which are left untouched when prefixing imports."
@@ -320,11 +256,10 @@
             (spit file new)))))))
 
 (defn- update-artifact!
-  [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs expositions watermark]}
+  [{:keys [pprefix skip-repackage-java-classes srcdeps project-source-dirs expositions watermark]}
    {:keys [art-name-cleaned art-version clj-files clj-dirs dep]}
    {:keys [src-path parent-clj-dirs branch]}]
   (let [repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
-        prefixes         (apply dissoc (reduce #(assoc %1 %2 (str (replacement repl-prefix %2 nil))) {} (possible-prefixes clj-files)) prefix-exclusions)
         expose?          (first (filter (partial t/path-pred branch dep) expositions))
         all-deps-dirs    (->> (concat
                                [src-path]
@@ -341,11 +276,8 @@
     (log/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
     (log/debug "    all dirs: " all-deps-dirs)
     (log/debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
-    (when-not skip-repackage-java-classes
-      (if (str/ends-with? (str src-path) (u/sym->file-name pprefix))
-        (doall
-         (map #(prefix-dependency-imports! pname pversion pprefix % (str src-path) srcdeps) prefixes))
-        (prefix-dependency-imports! pname pversion pprefix nil (str src-path) srcdeps)))
+    ;; Java `:import`s are rewritten in a single global pass (`prefix-java-imports!`)
+    ;; once all class files are unpacked; nothing to do per-artifact here.
     (doseq [clj-file clj-files
             :when (.exists (fs/file srcdeps clj-file))];; some cljc file might have been moved with their platform specific file
       (if-let [old-ns (some->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
