@@ -304,6 +304,29 @@
       (t/is (= (slurp file-moved-metamap2) expected-moved-metamap2-watermark)))))
 
 
+(t/deftest move-ns-load-statement-test
+  ;; `(load "…")` embeds a resource PATH (slashes), which the symbol-based body
+  ;; rewriting never sees; it must be repointed when the namespace moves (#61).
+  ;; The namespace also carries a docstring full of example Clojure code and
+  ;; escaped quotes, to confirm that doesn't trip up ns-form parsing.
+  (let [temp-dir (create-temp-dir! "mranderson-load")
+        src-dir  (io/file temp-dir "src")
+        _        (create-source-file! (io/file src-dir "foo" "bar" "alpha.clj")
+                                      (slurp "test-resources/load-statement-example.txt"))
+        moved    (io/file src-dir "moved" "foo" "bar" "alpha.clj")]
+    (sut/move-ns 'foo.bar.alpha 'moved.foo.bar.alpha src-dir ".clj" [src-dir] nil)
+    (t/is (.exists moved)
+          "the file is moved to the new namespace location")
+    (let [out (slurp moved)]
+      (t/is (.contains out "moved.foo.bar.alpha")
+            "the namespace is renamed")
+      (t/is (.contains out "(load \"/moved/foo/bar/alpha/extensions/maven\")")
+            "the load path is repointed to the new location")
+      (t/is (not (.contains out "\"/foo/bar/alpha/extensions"))
+            "the original load path is gone")
+      (t/is (.contains out "Alex Taggart")
+            "the docstring metadata is preserved through the move"))))
+
 (defn- s-rename-ns
   "A litle helper for rename-ns-test"
   [s old-ns-name new-ns-name add-meta-kw]
@@ -373,4 +396,9 @@
 
       ;; the bare namespace itself keeps the dashes
       "cider.nrepl.inlined-deps.instaparse.gll"
-      "instaparse.gll")))
+      "instaparse.gll"
+
+      ;; a (load "…") resource path is repointed in slash/underscore form (#61);
+      ;; the dash in the prefix becomes an underscore, like a package path
+      "(load \"/cider/nrepl/inlined_deps/instaparse/gll/extra\")"
+      "(load \"/instaparse/gll/extra\")")))
