@@ -1,5 +1,6 @@
 (ns mranderson.core
-  (:require [clojure.java.io :as io]
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.namespace.file :refer [read-file-ns-decl]]
             [me.raynes.fs :as fs]
@@ -200,18 +201,61 @@
           s
           tokens))
 
+(defn- rewrite-import-spec
+  "Rewrites a single `(:import …)` spec class-exactly, returning a seq of specs.
+
+  A prefix-list `[pkg C1 C2 …]` is split so only the classes actually in
+  `class-names` get the `prefix`-ed package, leaving the rest under the original
+  package. This both avoids prefixing classes that merely share a package with a
+  repackaged one (#52) and keeps deftype-generated classes - which are prefixed
+  separately by the namespace move - in their original group (#33). A
+  fully-qualified class symbol is prefixed iff it is in `class-names`."
+  [spec class-names prefix]
+  (cond
+    (vector? spec)
+    (let [pkg     (first spec)
+          classes (rest spec)]
+      (if (empty? classes)
+        [spec]
+        (let [grouped (group-by #(contains? class-names (str pkg "." %)) classes)
+              members (seq (get grouped true))
+              others  (seq (get grouped false))]
+          (cond-> []
+            others  (conj (into [pkg] others))
+            members (conj (into [(symbol (str prefix "." pkg))] members))))))
+
+    (symbol? spec)
+    [(if (contains? class-names (str spec))
+       (symbol (str prefix "." spec))
+       spec)]
+
+    :else
+    [spec]))
+
+(defn- rewrite-import-form
+  "Parses the `(:import …)` form text and rewrites each spec class-exactly,
+  splitting mixed prefix-lists. Returns the rewritten form as a string, or the
+  original text unchanged if it can't be parsed."
+  [orig-import class-names prefix]
+  (try
+    (let [form (edn/read-string orig-import)]
+      (pr-str (cons :import (mapcat #(rewrite-import-spec % class-names prefix) (rest form)))))
+    (catch Exception _
+      orig-import)))
+
 (defn- rewrite-java-imports
   "Rewrites `content` so references to repackaged Java classes are prefixed with
-  `cleaned-name-version`. Inside the `(:import …)` fragment (`orig-import`) the
-  classes are listed bare under their package, so packages are prefixed there;
-  in the rest of the file classes appear fully qualified, so the exact class
-  names are prefixed. The import fragment is swapped out for a placeholder while
-  the body is rewritten so it isn't processed twice. Returns `content` unchanged
-  when `orig-import` is blank."
-  [content orig-import class-names package-names cleaned-name-version]
+  `cleaned-name-version`. The `(:import …)` fragment (`orig-import`) is parsed and
+  rewritten class-exactly (see `rewrite-import-spec`); in the rest of the file
+  classes appear fully qualified, so the exact class names are prefixed. The
+  import fragment is swapped out for a placeholder while the body is rewritten so
+  it isn't processed twice. Returns `content` unchanged when `orig-import` is
+  blank."
+  [content orig-import class-names cleaned-name-version]
   (if (str/blank? orig-import)
     content
-    (let [new-import (prefix-occurrences orig-import package-names cleaned-name-version)
+    (let [class-set  (set class-names)
+          new-import (rewrite-import-form orig-import class-set cleaned-name-version)
           uuid       (str (UUID/randomUUID))]
       (-> content
           (str/replace orig-import uuid)
@@ -243,9 +287,9 @@
       (doseq [file clj-files]
         (let [old         (slurp (fs/file file))
               orig-import (find-orig-import imports file)
-              new         (rewrite-java-imports old orig-import class-names package-names cleaned-name-version)]
+              new         (rewrite-java-imports old orig-import class-names cleaned-name-version)]
           (when-not (= old new)
-            (log/debug "file: " file " orig import:" orig-import " new import:" (prefix-occurrences orig-import package-names cleaned-name-version))
+            (log/debug "file: " file " orig import:" orig-import " new:" new)
             (spit file new))))
       (log/info "    prefixing imports: done"))))
 
