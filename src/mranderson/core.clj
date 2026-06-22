@@ -293,6 +293,33 @@
             (spit file new))))
       (log/info "    prefixing imports: done"))))
 
+(defn- import-excluded?
+  "True if `file`'s path (relative to `srcdeps`) falls under one of the
+  `prefix-exclusions` packages, which are left untouched when prefixing imports."
+  [prefix-exclusions srcdeps file]
+  (let [rel (u/srcdeps-relative srcdeps file)]
+    (boolean (some #(str/includes? rel (str (u/sym->file-name %) "/")) prefix-exclusions))))
+
+(defn- prefix-java-imports!
+  "Rewrites Java `:import`s of repackaged classes across every inlined source
+  file under `srcdeps` - both the dependencies and the consuming project. The
+  per-dependency pass misses top-level dependency namespaces (#54) and the
+  project's own files (#92); this final pass, run once all the dependency class
+  files are unpacked (so the full set of repackaged classes is known), covers
+  them. It is idempotent: `rewrite-java-imports` won't re-prefix an import that
+  was already rewritten by the per-dependency pass."
+  [pname pversion srcdeps prefix-exclusions]
+  (let [cleaned-name-version (u/clean-name-version pname pversion)
+        class-names          (map (partial u/class-file->fully-qualified-name srcdeps) (u/class-files srcdeps))]
+    (when (seq class-names)
+      (doseq [^File file (u/clojure-source-files [srcdeps])
+              :when      (not (import-excluded? prefix-exclusions srcdeps file))]
+        (let [old (slurp file)
+              new (rewrite-java-imports old (import-fragment old) class-names cleaned-name-version)]
+          (when-not (= old new)
+            (log/debug "    prefixing java imports in" (str file))
+            (spit file new)))))))
+
 (defn- update-artifact!
   [{:keys [pname pversion pprefix skip-repackage-java-classes srcdeps prefix-exclusions project-source-dirs expositions watermark]}
    {:keys [art-name-cleaned art-version clj-files clj-dirs dep]}
@@ -453,7 +480,7 @@
   - expositions: transient dependencies made available for the project source files in unresolved tree mode
   - watermark: meta flag to mark inlined dependencies"
 
-  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides srcdeps] :as ctx} paths]
+  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides srcdeps prefix-exclusions] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
         overrides                   (or (and unresolved-tree overrides) {})
@@ -464,6 +491,10 @@
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files srcdeps)))
       (let [jar-file (fs/file (fs/parent srcdeps) "class-deps.jar")]
+        ;; rewrite imports the per-dependency pass missed (top-level deps, the
+        ;; project's own files) while the class files are still in their original
+        ;; (unprefixed) locations, so their names are known
+        (prefix-java-imports! pname pversion srcdeps prefix-exclusions)
         (class-deps-jar! srcdeps jar-file)
         (u/apply-jarjar! pname pversion srcdeps jar-file)
         (replace-class-deps! srcdeps jar-file)))))

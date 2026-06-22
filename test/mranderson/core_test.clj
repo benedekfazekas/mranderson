@@ -103,6 +103,41 @@
         (is (.exists (io/file working-directory name-version "difflib")))
         (is (not (.exists (io/file working-directory "difflib"))))))))
 
+(deftest t-project-java-imports-are-rewritten
+  ;; #92: the consuming project itself imports a class from an inlined dependency
+  ;; (difflib, pulled in via cljfmt); that import must be prefixed too.
+  (with-mranderson
+    [project {:dependencies '[^:inline-dep [cljfmt "0.7.0"]]
+              :files        [{:path    "mrt/main.clj"
+                              :content "(ns mrt.main\n  (:import [difflib DiffUtils]))"}]
+              :opts         {:unresolved-tree false}}]
+    (let [{:keys [working-directory]} project
+          name-version (util/clean-name-version "mranderson-test" "0.1.0-SNAPSHOT")
+          main         (io/file working-directory "mrt" "main.clj")]
+      (is (string/includes? (slurp main) (str "[" name-version ".difflib DiffUtils]"))
+          "the project's import of an inlined java class is prefixed")
+      (is (not (string/includes? (slurp main) "[difflib DiffUtils]"))
+          "the original, unprefixed import is gone"))))
+
+(deftest t-top-level-namespace-java-imports-are-rewritten
+  ;; #54: clj-tuple has a top-level `clj-tuple` namespace that imports the
+  ;; `clojure.lang.*` classes it generates; the per-dependency pass skips
+  ;; top-level namespaces, so its imports weren't being prefixed.
+  (with-mranderson
+    [project {:dependencies '[^:inline-dep [clj-tuple "0.2.2"]]
+              :files        []
+              :opts         {:unresolved-tree false}}]
+    (let [{:keys [working-directory]} project
+          name-version (util/clean-name-version "mranderson-test" "0.1.0-SNAPSHOT")
+          tuple-file   (->> (file-seq working-directory)
+                            (filter #(= "clj_tuple.clj" (.getName ^File %)))
+                            first)]
+      (is (some? tuple-file) "clj_tuple.clj should have been inlined")
+      (is (string/includes? (slurp tuple-file) (str name-version ".clojure.lang"))
+          "the top-level namespace's import of a repackaged class is prefixed")
+      (is (not (re-find #"\[clojure\.lang " (slurp tuple-file)))
+          "the original, unprefixed clojure.lang import is gone"))))
+
 (deftest t-copy-source-files
   (testing "Can merge files across overlapping dirs"
     (let [dir-a "test-resources/a"
