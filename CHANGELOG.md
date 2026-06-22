@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changes
+
+- Speed up inlining by rewriting namespace references in a single pass: in resolved-tree mode every source file is now parsed once instead of once per dependency whose scope overlapped it (it was effectively O(files x namespaces))
+
 ## 0.6.0
 
 ### Bug fixes

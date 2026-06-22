@@ -256,46 +256,59 @@
             (spit file new)))))))
 
 (defn- update-artifact!
-  [{:keys [pprefix skip-repackage-java-classes srcdeps project-source-dirs expositions watermark]}
+  "Moves an artifact's namespaces and collects the resulting renames.
+
+  In resolved-tree mode the renames are returned and applied later in a single
+  global pass (the rename map is 1:1, so no per-artifact dir scoping is needed).
+  In unresolved-tree mode the same namespace can be copied to many nested
+  locations with location-dependent prefixes, so references are rewritten within
+  this artifact's subtree right here, and `nil` is returned.
+
+  Java `:import`s are handled separately by the global `prefix-java-imports!`
+  pass once all class files are unpacked."
+  [{:keys [pprefix srcdeps project-source-dirs expositions watermark unresolved-tree]}
    {:keys [art-name-cleaned art-version clj-files clj-dirs dep]}
    {:keys [src-path parent-clj-dirs branch]}]
-  (let [repl-prefix      (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
-        expose?          (first (filter (partial t/path-pred branch dep) expositions))
-        all-deps-dirs    (->> (concat
-                               [src-path]
-                               (map fs/file clj-dirs)
-                               parent-clj-dirs)
-                              vec
-                              (mapv str)
-                              u/normalize-dirs
-                              (mapv fs/file))]
+  (let [repl-prefix (replacement-prefix pprefix src-path art-name-cleaned art-version nil)
+        expose?     (first (filter (partial t/path-pred branch dep) expositions))]
     (log/info (format "  munge source files of %s artifact on branch %s exposed %s." art-name-cleaned branch (boolean expose?)))
-    (log/debug "    proj-source-dirs" project-source-dirs " clj files" clj-files "clj dirs" clj-dirs " path to dep" src-path "parent-clj-dirs: " parent-clj-dirs)
     (log/debug "    modified namespace prefix: " repl-prefix)
-    (log/debug "    src path: " src-path)
-    (log/debug "    parent clj dirs: " (str/join ":" parent-clj-dirs))
-    (log/debug "    all dirs: " all-deps-dirs)
-    (log/debug (format "    modified dependency name: %s modified version string: %s" art-name-cleaned art-version))
-    ;; Java `:import`s are rewritten in a single global pass (`prefix-java-imports!`)
-    ;; once all class files are unpacked; nothing to do per-artifact here.
-    (doseq [clj-file clj-files
-            :when (.exists (fs/file srcdeps clj-file))];; some cljc file might have been moved with their platform specific file
-      (if-let [old-ns (some->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
-        (let [new-ns (replacement repl-prefix old-ns nil)]
-          (log/debug "    new ns:" new-ns)
-          (move/move-ns old-ns new-ns srcdeps (u/file->extension (str clj-file)) all-deps-dirs watermark)
+    ;; Move every namespace's file(s) and collect the renames; handle the rare
+    ;; no-`ns` files inline.
+    (let [renames (reduce
+                   (fn [renames clj-file]
+                     (if-not (.exists (fs/file srcdeps clj-file)) ; some cljc may have moved with its platform file
+                       renames
+                       (if-let [old-ns (some->> clj-file (fs/file srcdeps) read-file-ns-decl second)]
+                         (let [new-ns (replacement repl-prefix old-ns nil)
+                               ext    (u/file->extension (str clj-file))]
+                           (log/debug "    new ns:" new-ns)
+                           (move/move-ns-files! old-ns new-ns srcdeps ext)
+                           (conj renames {:old-sym old-ns :new-sym new-ns :extension ext :watermark watermark}))
+                         ;; a clj file without ns
+                         (do
+                           (when-not (= "project.clj" clj-file)
+                             (let [old-path (fs/file srcdeps clj-file)
+                                   new-path (str (u/sym->file-name pprefix) "/" art-name-cleaned "/" art-version "/" clj-file)]
+                               (fs/copy+ old-path (fs/file srcdeps new-path))
+                               ;; replace occurrences of file path references
+                               (doseq [file (u/clojure-source-files [srcdeps])]
+                                 (update-path-in-file file clj-file new-path))
+                               ;; remove old file
+                               (fs/delete old-path)))
+                           renames))))
+                   []
+                   clj-files)]
+      (if-not unresolved-tree
+        renames
+        (let [all-deps-dirs (->> (concat [src-path] (map fs/file clj-dirs) parent-clj-dirs)
+                                 vec (mapv str) u/normalize-dirs (mapv fs/file))]
+          (move/replace-ns-symbols-in-source-files renames all-deps-dirs)
           (when (or (str/ends-with? src-path (u/sym->file-name pprefix)) expose?)
-            (move/replace-ns-symbol-in-source-files old-ns new-ns (u/file->extension (str clj-file)) project-source-dirs nil)))
-        ;; a clj file without ns
-        (when-not (= "project.clj" clj-file)
-          (let [old-path (fs/file srcdeps clj-file)
-                new-path (str (u/sym->file-name pprefix) "/" art-name-cleaned "/" art-version "/" clj-file)]
-            (fs/copy+ old-path (fs/file srcdeps new-path))
-            ;; replace occurrences of file path references
-            (doseq [file (u/clojure-source-files [srcdeps])]
-              (update-path-in-file file clj-file new-path))
-            ;; remove old file
-            (fs/delete old-path)))))))
+            (move/replace-ns-symbols-in-source-files
+             (mapv #(assoc % :watermark nil) renames)
+             project-source-dirs))
+          nil)))))
 
 (defn- remove-invalid-duplicates!
   "See issue #44. Some artifacts package duplicate files in weird locations
@@ -388,12 +401,12 @@
                                         (into (sorted-map-by topo-comparator)))]
     (log/info "in RESOLVED-TREE mode, working on a resolved dependency tree")
     (t/walk-deps resolved-deps print-dep)
-    (t/walk-ordered-deps
-     ordered-resolved-deps
-     unzip-artifact!
-     update-artifact!
-     paths
-     ctx)))
+    ;; Each artifact moves its files and returns its renames; rewrite every
+    ;; reference across all sources in a single pass, so each file is parsed once
+    ;; rather than once per artifact whose dir scope overlaps it.
+    (let [renames (->> (t/walk-ordered-deps ordered-resolved-deps unzip-artifact! update-artifact! paths ctx)
+                       (apply concat))]
+      (move/replace-ns-symbols-in-source-files renames [(:srcdeps ctx)]))))
 
 (defn mranderson
   "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.

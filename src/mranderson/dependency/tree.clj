@@ -74,13 +74,14 @@
   "Walks a flat list of dependencies.
 
   Applies `pre-fn` on all the dependencies and collects the `pre-fn` returned contextual values and paths.
-  Runs `post-fn` on all the dependencies in a reverse order using the `pre-fn` results and paths."
+  Runs `post-fn` on all the dependencies in a reverse order using the `pre-fn` results and paths, and
+  returns a vector of the `post-fn` results in that order."
   [deps pre-fn post-fn paths ctx]
   (->> (keys deps)
        (map (partial pre-fn ctx paths))
        ((juxt (partial reduce (fn [clj-dirs [_ {:keys [parent-clj-dirs]}]] (into clj-dirs parent-clj-dirs)) []) reverse))
        ((fn [[clj-dirs deps]]
-          (dorun (map (fn [[pre-result _]] (post-fn ctx pre-result (update paths :parent-clj-dirs concat clj-dirs))) deps))))))
+          (mapv (fn [[pre-result _]] (post-fn ctx pre-result (update paths :parent-clj-dirs concat clj-dirs))) deps)))))
 
 (defn- create-dep-graph
   ([graph deps level]

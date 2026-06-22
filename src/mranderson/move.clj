@@ -53,16 +53,6 @@
      (= file-ext extension-of-moved)
      (= file-ext ".cljc"))))
 
-(defn- clojure-source-files [dirs extension]
-  (->> dirs
-       (map io/file)
-       (filter #(.exists ^File %))
-       (mapcat file-seq)
-       (filter (fn [^File file]
-                 (and (.isFile file)
-                      (update? (str file) extension))))
-       (mapv fs/normalized)))
-
 (defn- prefix-libspec [libspec]
   (let [prefix (str/join "." (butlast (str/split (name libspec) #"\.")))]
     (and prefix (symbol prefix))))
@@ -359,6 +349,69 @@
       (str/replace new-source-sans-ns ns-form-placeholder new-ns-form))
      new-source-sans-ns)))
 
+(defn- apply-ns-rename-to-form
+  "Applies one rename to a single ns form (given as a string), with the same cljc
+  platform handling as `replace-ns-symbol`, and returns the rewritten ns-form
+  string. The ns form is small, so reparsing it per rename is cheap - the
+  expensive whole-file split happens once in `replace-ns-symbols`."
+  [ns-form-str {:keys [old-sym new-sym watermark extension]} file-ext]
+  (let [ns-loc             (z/of-string ns-form-str)
+        opposite-platform  (util/platform-comp (util/extension->platform extension))
+        [replaced ns-loc]  (or (and (= ".cljc" file-ext)
+                                    opposite-platform
+                                    (find-and-replace-platform-specific-subforms opposite-platform ns-loc))
+                               [[] ns-loc])
+        new-form           (replace-in-ns-form ns-loc old-sym new-sym watermark)]
+    (if (seq replaced)
+      (restore-platform-specific-subforms opposite-platform replaced new-form)
+      new-form)))
+
+(defn- source-replacement-multi
+  "Like `source-replacement`, but tries each rename in turn and applies the first
+  one that matches the token (the renames are pre-sorted longest-namespace-first
+  so a more specific prefix wins)."
+  [renames match]
+  (reduce (fn [_ {:keys [old-sym new-sym]}]
+            (let [replaced (source-replacement old-sym new-sym match)]
+              (if (= replaced match) match (reduced replaced))))
+          match
+          renames))
+
+(defn- replace-in-source-multi
+  "Rewrites the ns body once for a whole batch of `renames`: a single regex scan
+  whose replacement function dispatches to whichever rename matches each token,
+  instead of one full scan per rename."
+  [source-sans-ns renames]
+  (if (empty? renames)
+    source-sans-ns
+    (let [regex (re-pattern (str (->> renames
+                                      (map #(java.util.regex.Pattern/quote (load-param (:old-sym %))))
+                                      (str/join "|"))
+                                 "|"
+                                 (.pattern ^java.util.regex.Pattern symbol-regex)))]
+      (str/replace source-sans-ns regex (partial source-replacement-multi renames)))))
+
+(defn replace-ns-symbols
+  "Applies a batch of `renames` to one file's `content` in a single pass: the ns
+  form is parsed once and the body scanned once, rather than once per rename.
+  `renames` is a seq of maps {:old-sym :new-sym :watermark :extension}. The
+  result is equivalent to folding `replace-ns-symbol` over the renames, but
+  O(file) instead of O(file x renames)."
+  [content renames file-ext]
+  (if (empty? renames)
+    content
+    ;; longest namespace first so e.g. `a.b.c` is preferred over `a.b` when both
+    ;; could prefix-match the same token
+    (let [renames       (sort-by #(- (count (name (:old-sym %)))) renames)
+          [ns-loc body] (split-ns-form-ns-body content)
+          new-ns-form   (when ns-loc
+                          (reduce (fn [s rename] (apply-ns-rename-to-form s rename file-ext))
+                                  (z/root-string ns-loc)
+                                  renames))
+          new-body      (replace-in-source-multi body renames)]
+      (or (and new-ns-form (str/replace new-body ns-form-placeholder new-ns-form))
+          new-body))))
+
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
   to source-path) for the namespace named old-sym to a file for a
@@ -385,18 +438,62 @@
     map
     pmap))
 
+(defn- clojure-source-files-all
+  "All Clojure source files (.clj/.cljc/.cljs) under `dirs`, normalized. Unlike
+  `clojure-source-files` this doesn't filter by a single moved namespace's
+  extension - the per-rename `update?` check is applied later, per file."
+  [dirs]
+  (->> dirs
+       (map io/file)
+       (filter #(.exists ^File %))
+       (mapcat file-seq)
+       (filter (fn [^File file]
+                 (and (.isFile file)
+                      (boolean (util/file->extension (str file))))))
+       (mapv fs/normalized)))
+
+(defn move-ns-files!
+  "Moves the source file(s) for `old-sym` to `new-sym` WITHOUT rewriting any
+  references (also moves a `.cljc` companion when moving a `.clj`/`.cljs`).
+
+  WARNING: moves and deletes source files."
+  [old-sym new-sym source-path extension]
+  (move-ns-file old-sym new-sym extension source-path)
+  ;; move cljc file with the platform specific file if exists
+  (when (and (#{".clj" ".cljs"} extension) (.exists (sym->file source-path old-sym ".cljc")))
+    (move-ns-file old-sym new-sym ".cljc" source-path)))
+
+(defn replace-ns-symbols-in-source-files
+  "Applies a batch of namespace renames to every Clojure source file under
+  `dirs`, reading and writing each file at most once (in parallel, per file).
+
+  `renames` is a seq of maps with `:old-sym`, `:new-sym`, `:extension` (the moved
+  namespace's file extension) and `:watermark`. A rename is applied to a given
+  file only when `update?` holds for that file and the rename's extension - the
+  same per-rename behaviour as applying the renames one at a time, but without
+  re-scanning the directories and re-reading every file once per rename."
+  [renames dirs]
+  (when (seq renames)
+    (let [files (clojure-source-files-all dirs)]
+      (util/assert-no-duplicate-files files)
+      (->> files
+           (pmap-runner
+            (fn [file]
+              (let [file-ext   (util/file->extension (str file))
+                    ;; only the renames whose moved-namespace extension applies to
+                    ;; this file (the per-rename behaviour of `update?`)
+                    applicable (filterv #(update? (str file) (:extension %)) renames)]
+                (when (seq applicable)
+                  (update-file file (fn [content] (replace-ns-symbols content applicable file-ext)))))))
+           (doall)))))
+
 (defn replace-ns-symbol-in-source-files
   "Replaces all occurrences of the old name with the new name in
   all Clojure source files found in dirs."
   [old-sym new-sym extension dirs watermark]
-  (let [files (clojure-source-files dirs extension)]
-    (util/assert-no-duplicate-files files)
-    (->> files
-         (pmap-runner (fn [file]
-                        (->> (str file)
-                             util/file->extension
-                             (update-file file replace-ns-symbol old-sym new-sym watermark extension))))
-         (doall))))
+  (replace-ns-symbols-in-source-files
+   [{:old-sym old-sym :new-sym new-sym :extension extension :watermark watermark}]
+   dirs))
 
 (defn move-ns
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
@@ -410,8 +507,5 @@
   WARNING: This function modifies and deletes your source files! Make
   sure you have a backup or version control."
   [old-sym new-sym source-path extension dirs watermark]
-  (move-ns-file old-sym new-sym extension source-path)
-  ;; move cljc file with the platform specific file if exists
-  (when (and (#{".clj" ".cljs"} extension) (.exists (sym->file source-path old-sym ".cljc")))
-    (move-ns-file old-sym new-sym ".cljc" source-path))
+  (move-ns-files! old-sym new-sym source-path extension)
   (replace-ns-symbol-in-source-files old-sym new-sym extension dirs watermark))
