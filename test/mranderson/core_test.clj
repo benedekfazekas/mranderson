@@ -167,47 +167,50 @@
 
 (deftest t-rewrite-java-imports
   (let [prefix "mrt010"]
-    (testing "fully-qualified import: package is prefixed in the import, class name in the body"
+    (testing "prefix-list import: package is prefixed in the import, class name in the body"
       (let [content     (str "(ns foo\n"
                              "  (:import [com.example Widget]))\n"
                              "(defn make [] (com.example.Widget/create))")
             orig-import "(:import [com.example Widget])"
-            class-names ["com.example.Widget"]
-            pkg-names   #{"com.example"}]
+            class-names ["com.example.Widget"]]
         (is (= (str "(ns foo\n"
                     "  (:import [mrt010.com.example Widget]))\n"
                     "(defn make [] (mrt010.com.example.Widget/create))")
-               (rewrite-java-imports content orig-import class-names pkg-names prefix)))))
+               (rewrite-java-imports content orig-import class-names prefix)))))
+
+    (testing "fully-qualified class import is prefixed when repackaged"
+      (is (= "(ns foo\n  (:import mrt010.com.example.Widget))"
+             (rewrite-java-imports "(ns foo\n  (:import com.example.Widget))"
+                                   "(:import com.example.Widget)"
+                                   ["com.example.Widget"] prefix))))
 
     (testing "a blank import fragment leaves the content untouched"
-      (is (= "(ns foo)" (rewrite-java-imports "(ns foo)" "" ["com.example.Widget"] #{"com.example"} prefix))))
+      (is (= "(ns foo)" (rewrite-java-imports "(ns foo)" "" ["com.example.Widget"] prefix))))
 
-    ;; The following two cases pin CURRENT (buggy) behavior so the structural
-    ;; import-rewrite fix has a regression net to flip. They are not the desired
-    ;; end state.
-    (testing "KNOWN BUG (#52): a class in a repackaged package but NOT itself repackaged is still prefixed"
-      ;; clj-tuple ships some `clojure.lang.*` class, so `clojure.lang` ends up in
-      ;; the package set; an unrelated import of core `clojure.lang.Var` should be
-      ;; left alone, but currently the whole package gets prefixed.
+    (testing "every class in a prefix-list is repackaged: the package is prefixed, no split"
+      (is (= "(ns foo\n  (:import [mrt010.com.example Widget Gadget]))"
+             (rewrite-java-imports "(ns foo\n  (:import [com.example Widget Gadget]))"
+                                   "(:import [com.example Widget Gadget])"
+                                   ["com.example.Widget" "com.example.Gadget"] prefix))))
+
+    (testing "#52: a class sharing a package with a repackaged one but not itself repackaged is left alone"
+      ;; clj-tuple ships some `clojure.lang.*` class, so `clojure.lang` shows up in
+      ;; the package set, but core `clojure.lang.Var`/`Compiler` must not be touched.
       (let [content     "(ns riddley.compiler\n  (:import [clojure.lang Var Compiler]))"
             orig-import "(:import [clojure.lang Var Compiler])"
-            class-names ["clojure.lang.Tuple"]   ;; the only actually-repackaged class
-            pkg-names   #{"clojure.lang"}]
-        (is (= "(ns riddley.compiler\n  (:import [mrt010.clojure.lang Var Compiler]))"
-               (rewrite-java-imports content orig-import class-names pkg-names prefix))
-            "currently over-prefixes; the fix should leave Var/Compiler untouched")))
+            class-names ["clojure.lang.Tuple"]]   ;; the only actually-repackaged class
+        (is (= content (rewrite-java-imports content orig-import class-names prefix))
+            "Var/Compiler are not repackaged, so the import is unchanged")))
 
-    (testing "KNOWN BUG (#33): a mixed import gets a single package prefix for classes that need different ones"
-      ;; In `[pkg Deftyped JavaClass]`, the deftype-generated class is prefixed by
-      ;; the namespace move (nested prefix) and the real java class by jarjar (flat
-      ;; prefix); the import form can only carry one package prefix today.
+    (testing "#33: a mixed import is split so each class gets the right package"
+      ;; `JavaClass` is a real java class (repackaged here); `Deftyped` is a
+      ;; deftype-generated class left under its original package for the namespace
+      ;; move to prefix separately.
       (let [content     "(ns user\n  (:import [com.acme.impl Deftyped JavaClass]))"
             orig-import "(:import [com.acme.impl Deftyped JavaClass])"
-            class-names ["com.acme.impl.JavaClass"]
-            pkg-names   #{"com.acme.impl"}]
-        (is (= "(ns user\n  (:import [mrt010.com.acme.impl Deftyped JavaClass]))"
-               (rewrite-java-imports content orig-import class-names pkg-names prefix))
-            "currently applies one package prefix to both; the fix should split the import")))))
+            class-names ["com.acme.impl.JavaClass"]]
+        (is (= "(ns user\n  (:import [com.acme.impl Deftyped] [mrt010.com.acme.impl JavaClass]))"
+               (rewrite-java-imports content orig-import class-names prefix)))))))
 
 (defn- temp-dir [prefix]
   (doto (File/createTempFile prefix "")
