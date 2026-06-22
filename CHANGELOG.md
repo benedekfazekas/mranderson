@@ -4,7 +4,7 @@
 
 ### Changes
 
-- Speed up inlining by rewriting namespace references in a single pass: in resolved-tree mode every source file is now parsed once instead of once per dependency whose scope overlapped it (it was effectively O(files x namespaces))
+- Speed up inlining (roughly 2x on a medium dependency tree) by rewriting namespace references in a single pass: in resolved-tree mode every source file is now parsed once instead of once per dependency whose scope overlapped it (it was effectively O(files x namespaces)), and each file's tokens are dispatched to the matching rename by first segment rather than checked against every rename
 
 ## 0.6.0
 

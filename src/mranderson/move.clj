@@ -366,30 +366,55 @@
       (restore-platform-specific-subforms opposite-platform replaced new-form)
       new-form)))
 
+(defn- ns-first-segments
+  "The first path segment of a namespace, in both its namespace (dash) and
+  package/path (underscore) spellings. Every token `source-replacement` could
+  rewrite for a rename - a namespace ref, a fully-qualified class, a type hint or
+  a `load` path - starts with one of these, so they're enough to index by."
+  [old-sym]
+  (let [seg (first (str/split (name old-sym) #"\."))]
+    (cond-> #{seg}
+      (str/includes? seg "-") (conj (str/replace seg "-" "_")))))
+
+(defn- token-first-segment
+  "The first segment of a matched token, ignoring a leading quote or type-hint
+  caret, for lookup against `ns-first-segments`."
+  [match]
+  (-> match
+      (str/replace #"^[\"^]+" "")
+      (str/split #"[./]")
+      first))
+
 (defn- source-replacement-multi
-  "Like `source-replacement`, but tries each rename in turn and applies the first
-  one that matches the token (the renames are pre-sorted longest-namespace-first
-  so a more specific prefix wins)."
-  [renames match]
+  "Applies the first of `match`'s candidate renames that rewrites it. `by-segment`
+  maps a first segment to the renames whose namespace starts with it; candidates
+  are pre-sorted longest-namespace-first so a more specific prefix wins. Tokens
+  whose first segment matches no rename (the vast majority) are returned as-is
+  without touching any rename."
+  [by-segment match]
   (reduce (fn [_ {:keys [old-sym new-sym]}]
             (let [replaced (source-replacement old-sym new-sym match)]
               (if (= replaced match) match (reduced replaced))))
           match
-          renames))
+          (get by-segment (token-first-segment match))))
 
 (defn- replace-in-source-multi
   "Rewrites the ns body once for a whole batch of `renames`: a single regex scan
-  whose replacement function dispatches to whichever rename matches each token,
-  instead of one full scan per rename."
+  whose replacement function dispatches by first segment to whichever rename
+  matches each token, instead of one full scan per rename."
   [source-sans-ns renames]
   (if (empty? renames)
     source-sans-ns
-    (let [regex (re-pattern (str (->> renames
-                                      (map #(java.util.regex.Pattern/quote (load-param (:old-sym %))))
-                                      (str/join "|"))
-                                 "|"
-                                 (.pattern ^java.util.regex.Pattern symbol-regex)))]
-      (str/replace source-sans-ns regex (partial source-replacement-multi renames)))))
+    (let [by-segment (reduce (fn [m rename]
+                               (reduce #(update %1 %2 (fnil conj []) rename)
+                                       m (ns-first-segments (:old-sym rename))))
+                             {} renames)
+          regex      (re-pattern (str (->> renames
+                                           (map #(java.util.regex.Pattern/quote (load-param (:old-sym %))))
+                                           (str/join "|"))
+                                      "|"
+                                      (.pattern ^java.util.regex.Pattern symbol-regex)))]
+      (str/replace source-sans-ns regex (partial source-replacement-multi by-segment)))))
 
 (defn replace-ns-symbols
   "Applies a batch of `renames` to one file's `content` in a single pass: the ns
