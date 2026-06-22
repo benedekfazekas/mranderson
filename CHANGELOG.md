@@ -5,6 +5,7 @@
 
 ## Bug fixes
 
+- [fix [#73](https://github.com/benedekfazekas/mranderson/issues/73)] Munge the package of fully-qualified class/record references to Java style so a dash in the prefix doesn't produce broken references
 - [fix [#64](https://github.com/benedekfazekas/mranderson/issues/64)] Strip non-alphanumeric characters (e.g. a `/` in a `n/a` version) from the generated prefix so they don't break imports
 - [fix [#78](https://github.com/benedekfazekas/mranderson/issues/78)] Fix watermarking moved namespaces 
 - [fix [#53](https://github.com/benedekfazekas/mranderson/issues/53)] Fix inlining where one directory name in the library is a substring of an other directory name
