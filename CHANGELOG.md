@@ -15,6 +15,7 @@
 
 ## Changes
 
+- [#89](https://github.com/benedekfazekas/mranderson/issues/89) Warn when `:aot` is configured, since inlining AOT-compiled namespaces produces broken prefixes
 - [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] add `mranderson.core/inline-deps`, a Leiningen-free entry point usable from `tools.build`/`tools.deps`
 - [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] uncouple MrAnderson from leiningen to support general use 
 - [maint [#66](https://github.com/benedekfazekas/mranderson/issues/66)] bump MrAnderson dependencies
