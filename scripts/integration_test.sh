@@ -2,20 +2,11 @@
 set -Eeuxo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-# An integration test that exercises that cider-nrepl and refactor-nrepl can successfully use mranderson @ latest.
-# For that, we both build those projects with mranderson in them, and run their mrandersonized test suites.
+# Full integration test: build and install mranderson, then exercise it through
+# cider-nrepl and refactor-nrepl. This is the all-in-one entry point for local
+# use (`make integration-test`). CI instead runs the two phases as separate
+# steps so the deterministic install can fail hard while the downstream builds
+# (which track moving upstream targets) stay soft.
 
 make install
-git submodule update --init --recursive
-
-# cider-nrepl observes CI, which triggers :pedantic?, which is irrelevant here:
-unset CI
-
-cd test-resources/cider-nrepl
-lein clean
-lein with-profile -user,-dev inline-deps
-lein with-profile -user,-dev,+1.10,+test,+plugin.mranderson/config test
-
-cd ../refactor-nrepl
-lein clean
-make test
+scripts/downstream_test.sh

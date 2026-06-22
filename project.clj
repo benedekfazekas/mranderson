@@ -24,6 +24,10 @@
                  [org.pantsbuild/jarjar "1.7.2"]]
   :mranderson {:project-prefix "mranderson.inlined"}
   :profiles {:dev {:dependencies [[leiningen-core "2.12.0"]]}
+             ;; Clojure version profiles, exercised by the CI matrix.
+             :1.10 {:dependencies [[org.clojure/clojure "1.10.3"]]}
+             :1.11 {:dependencies [[org.clojure/clojure "1.11.4"]]}
+             :1.12 {:dependencies [[org.clojure/clojure "1.12.1"]]}
              :eastwood {:plugins [[jonase/eastwood "1.4.3"]]
                         :eastwood {:exclude-linters [:no-ns-form-found]}}
              :mranderson-plugin {:plugins [[thomasa/mranderson ~project-version]]}
