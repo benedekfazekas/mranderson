@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- [#97](https://github.com/benedekfazekas/mranderson/issues/97) Prefix repackaged Java classes referenced in a namespace body even when the file has no `(:import ...)` form (previously such references were left bare and threw `ClassNotFoundException` at runtime)
+
 ### Changes
 
 - Speed up inlining (roughly 2x on a medium dependency tree) by rewriting namespace references in a single pass: in resolved-tree mode every source file is now parsed once instead of once per dependency whose scope overlapped it (it was effectively O(files x namespaces)), and each file's tokens are dispatched to the matching rename by first segment rather than checked against every rename

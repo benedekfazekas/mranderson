@@ -215,11 +215,15 @@
   rewritten class-exactly (see `rewrite-import-spec`); in the rest of the file
   classes appear fully qualified, so the exact class names are prefixed. The
   import fragment is swapped out for a placeholder while the body is rewritten so
-  it isn't processed twice. Returns `content` unchanged when `orig-import` is
-  blank."
+  it isn't processed twice.
+
+  When there is no `(:import …)` form the body is still rewritten: a file can
+  reference a repackaged class fully qualified in its body without importing it
+  (e.g. `(org.httpkit.PrefixThreadFactory. …)`), and those references must be
+  prefixed too or they throw `ClassNotFoundException` at runtime. See #97."
   [content orig-import class-names cleaned-name-version]
   (if (str/blank? orig-import)
-    content
+    (prefix-occurrences content class-names cleaned-name-version)
     (let [class-set  (set class-names)
           new-import (rewrite-import-form orig-import class-set cleaned-name-version)
           uuid       (str (UUID/randomUUID))]
