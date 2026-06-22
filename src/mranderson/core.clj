@@ -8,7 +8,8 @@
             [mranderson.move :as move]
             [mranderson.log :as log]
             [mranderson.util :as u])
-  (:import java.util.UUID
+  (:import java.io.File
+           java.util.UUID
            [java.util.zip ZipEntry ZipFile ZipOutputStream]))
 
 ;; inlined from leiningen source
@@ -153,11 +154,30 @@
             (flush)
             (.closeEntry zip)))))))
 
+(defn- delete-class-files!
+  "Deletes the `.class` files under `dir`, then prunes any directories left
+  empty. Other files (notably `.clj`/`.cljc`/`.cljs` sources) are preserved, so
+  a dependency's compiled classes can be removed before unpacking the repackaged
+  ones without clobbering sibling sources that happen to share a top-level
+  directory with them, e.g. when an inlined lib's root namespace matches the
+  project's own (see #88)."
+  [^File dir]
+  (when (.isDirectory dir)
+    ;; reverse of the pre-order file-seq visits children before their parents,
+    ;; so a directory is only checked for emptiness once its class files are gone
+    (doseq [^File f (reverse (file-seq dir))]
+      (cond
+        (and (.isFile f) (str/ends-with? (.getName f) ".class"))
+        (.delete f)
+
+        (and (.isDirectory f) (empty? (.listFiles f)))
+        (.delete f)))))
+
 (defn- replace-class-deps! []
-  (log/info "deleting directories with class files in target/srcdeps...")
+  (log/info "deleting class files in target/srcdeps...")
   (doseq [class-dir (u/java-class-dirs)]
-    (fs/delete-dir (str "target/srcdeps/" class-dir))
-    (log/info "  " class-dir " deleted"))
+    (delete-class-files! (fs/file "target/srcdeps" class-dir))
+    (log/info "  " class-dir " class files deleted"))
   (log/info "unzipping repackaged class-deps.jar into target/srcdeps")
   (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
 

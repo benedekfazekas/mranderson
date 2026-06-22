@@ -118,6 +118,37 @@
     (.delete)
     (.mkdirs)))
 
+(def ^:private delete-class-files! #'sut/delete-class-files!)
+
+(deftest t-delete-class-files
+  (let [root (temp-dir "mranderson-delete-class")]
+    (try
+      ;; a dependency's compiled classes...
+      (spit (doto (io/file root "full" "json.class") (-> .getParentFile .mkdirs)) "")
+      (spit (io/file root "full" "json$fn.class") "")
+      ;; ...sharing a top-level dir with the project's own sources (see #88)
+      (spit (doto (io/file root "full" "aws" "core.clj") (-> .getParentFile .mkdirs)) "(ns full.aws.core)")
+      ;; a dir that holds nothing but class files
+      (spit (doto (io/file root "only" "classes" "A.class") (-> .getParentFile .mkdirs)) "")
+
+      (delete-class-files! (io/file root "full"))
+      (delete-class-files! (io/file root "only"))
+
+      (testing "class files are removed"
+        (is (not (.exists (io/file root "full" "json.class"))))
+        (is (not (.exists (io/file root "full" "json$fn.class"))))
+        (is (not (.exists (io/file root "only" "classes" "A.class")))))
+
+      (testing "sibling source files are preserved"
+        (is (.exists (io/file root "full" "aws" "core.clj")))
+        (is (= "(ns full.aws.core)" (slurp (io/file root "full" "aws" "core.clj")))))
+
+      (testing "directories left empty are pruned"
+        (is (not (.exists (io/file root "only")))))
+
+      (finally
+        (fs/delete-dir root)))))
+
 (deftest t-inline-deps
   (let [src    (temp-dir "mranderson-inline-src")
         target (temp-dir "mranderson-inline-target")
