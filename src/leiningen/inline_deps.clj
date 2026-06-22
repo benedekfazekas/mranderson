@@ -20,6 +20,18 @@
                          str
                          (.substring 0 8))))
 
+(defn- aot-configured? [aot]
+  (or (= :all aot)
+      (and (coll? aot) (seq aot))))
+
+(defn- warn-on-aot
+  "AOT compilation produces `.class` files for the project and its deps. When
+  inlining those, MrAnderson can end up repeating the prefix on already-compiled
+  namespaces (see #89), so warn the user that disabling `:aot` avoids the trouble."
+  [{:keys [aot]}]
+  (when (aot-configured? aot)
+    (log/warn "WARNING: `:aot` is set in this project. Inlining AOT-compiled namespaces is known to produce broken prefixes (see https://github.com/benedekfazekas/mranderson/issues/89). Consider disabling `:aot` while inlining dependencies.")))
+
 (defn- lein-project->ctx
   [{:keys [root target-path name version mranderson]} args]
   (let [cli-opts                    (map edn/read-string args)
@@ -60,6 +72,7 @@
   :prefix-exclusions        list      List of prefixes that should not be processed in imports
   :unresolved-tree          boolean   Enforces unresolved tree mode"
   [{:keys [repositories dependencies target-path] :as project} & args]
+  (warn-on-aot project)
   (c/copy-source-files (u/determine-source-dirs project) target-path)
   (let [{:keys [pprefix] :as ctx} (lein-project->ctx project args)
         paths                     (initial-paths target-path pprefix)]
