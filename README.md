@@ -16,7 +16,7 @@ Use it if you have dependency conflicts and don't care to solve them. In **unres
 
 ## Usage
 
-MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.5.3"]` into the `:plugins` vector of your project.clj. You can also use it directly not as a leiningen plugin, see [conjure-deps](https://github.com/Olical/conjure-deps) for an example.
+MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.6.0"]` into the `:plugins` vector of your project.clj. You can also use it directly not as a leiningen plugin, see [conjure-deps](https://github.com/Olical/conjure-deps) for an example.
 
 Mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:inline-dep` meta tag. For example:
 
@@ -45,7 +45,7 @@ Or run your tests with them
 
 Release locally
 
-    $ lein with-profile plugin.mranderson/config install
+    $ lein with-profile +plugin.mranderson/config install
 
 Release to clojars
 
@@ -65,7 +65,7 @@ Add MrAnderson to a build alias in `deps.edn`:
 ```clojure
 {:aliases
  {:build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.10"}
-                 thomasa/mranderson {:mvn/version "0.5.4"}}
+                 thomasa/mranderson {:mvn/version "0.6.0"}}
           :ns-default build}}}
 ```
 
@@ -236,18 +236,21 @@ Again: in the **resolved tree** mode no transient dependency hygiene is applied.
 
 ### Further config options
 
-All the options can be provided via CLI or the project file.
+All the options below apply to the Leiningen plugin and can be provided via CLI
+or the project file. The Leiningen-free `mranderson.core/inline-deps` function
+takes the same set of options as a plain map, with two naming differences noted
+below; see its docstring for the authoritative list.
 
 | Option                   | Default                        |  Description | Example |
 |--------------------------|--------------------------------|-------------|---------|
-| project-prefix           | mranderson{rnd}                |  project pecific prefix to use when shadowing            | `lein inline-deps :project-prefix cider.inlined-deps` |
-| skip-javaclass-repackage | false                          |  If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies            | `lein inline-deps :skip-javaclass-repackage true`        |
+| project-prefix           | mranderson{rnd}                |  project specific prefix to use when shadowing            | `lein inline-deps :project-prefix cider.inlined-deps` |
+| skip-javaclass-repackage | false                          |  If true [Jar Jar Links](https://code.google.com/p/jarjar/) won't be used to repackage java classes in dependencies. (The `inline-deps` function calls this option `:skip-repackage-java-classes`.)            | `lein inline-deps :skip-javaclass-repackage true`        |
 | prefix-exclusions        | empty list                     |  List of prefixes which should not be processed in imports            |  `lein inline-deps :prefix-exclusions "[\"classlojure\"]"`  |
 | watermark                | :mranderson/inlined            |  MrAnderson adds `watermark` as metadata to inlined namespaces. This allows tools like [cljdoc](https://cljdoc.org) to exclude inlined namespaces from a library's documented API. Cljdoc, for example, automatically excludes namespaces with any of `:mranderson/inlined`, `:no-doc`, `:skip-wiki` metadata. | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
 | unresolved-tree          | false                          |  Switch between **unresolved tree** and **resolved tree** mode | `lein inline-deps :unresolved-tree true` |
 | overrides                | empty list                     |  Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
 | expositions              | empty list                     |  Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
-| included-source-paths    | nil                            |  Determines which of the provided `:source-paths` (not `:test-paths`!) will be inlined. If `nil` or `:first`, the first source path (typically `"src"`) will be the only one to be processed. If set to `:source-paths`, all `:source-paths` will be processed. If set a vector, that vector will be interpreted as the list of source dirs to be processed, as-is, omitting the project `:source-dirs` value. 
+| included-source-paths    | nil                            |  (Leiningen task only.) Determines which of the provided `:source-paths` (not `:test-paths`!) will be inlined. If `nil` or `:first`, the first source path (typically `"src"`) will be the only one to be processed. If set to `:source-paths`, all `:source-paths` will be processed. If set to a vector, that vector will be interpreted as the list of source dirs to be processed, as-is, ignoring the project's `:source-paths` value. |
 
 ## Prerequisites
 
