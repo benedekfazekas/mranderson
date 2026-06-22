@@ -340,3 +340,37 @@
   (t/is (= (s-rename-ns "(ns #_#_ skip1 skip2 ^:boop #_ skip3 foo)" 'foo 'bar :mranderson/zing)
            "(ns #_#_ skip1 skip2 ^{:boop true :mranderson/zing true} #_ skip3 bar)")
         "uneval nodes are skipped"))
+
+(def ^:private replace-in-source #'sut/replace-in-source)
+
+(t/deftest replace-in-source-test
+  ;; when the new namespace prefix contains a dash (e.g. a project-prefix like
+  ;; `cider.nrepl.inlined-deps`), a fully-qualified class/record reference must
+  ;; have its package part munged to Java style (dashes -> underscores), while a
+  ;; namespace/var reference keeps the dashes. See #73.
+  (let [old-sym 'instaparse.gll
+        new-sym 'cider.nrepl.inlined-deps.instaparse.gll]
+    (t/are [expected source] (= expected (replace-in-source source old-sym new-sym))
+      ;; fully-qualified record/class reference -> underscored package
+      "cider.nrepl.inlined_deps.instaparse.gll.Failure"
+      "instaparse.gll.Failure"
+
+      ;; constructor form keeps the trailing dot, still underscored
+      "(cider.nrepl.inlined_deps.instaparse.gll.Failure. tree)"
+      "(instaparse.gll.Failure. tree)"
+
+      ;; instance? check on a fully-qualified record -> underscored package
+      "(instance? cider.nrepl.inlined_deps.instaparse.gll.Failure x)"
+      "(instance? instaparse.gll.Failure x)"
+
+      ;; a namespaced var reference keeps the dashes
+      "cider.nrepl.inlined-deps.instaparse.gll/parse"
+      "instaparse.gll/parse"
+
+      ;; a deeper sub-namespace (lowercase last segment) keeps the dashes
+      "cider.nrepl.inlined-deps.instaparse.gll.core"
+      "instaparse.gll.core"
+
+      ;; the bare namespace itself keeps the dashes
+      "cider.nrepl.inlined-deps.instaparse.gll"
+      "instaparse.gll")))

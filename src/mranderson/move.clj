@@ -237,6 +237,20 @@
       (recur found-node)
       (z/root-string loc))))
 
+(defn- class-reference?
+  "True if `match`, a fully-qualified dotted symbol (the reader splits on `/`, so
+  these never contain a slash), refers to a Java class/record rather than a
+  namespace or var. Clojure class names are CamelCase, so we treat a final
+  segment that starts with an uppercase letter as a class. A trailing dot
+  (constructor form, e.g. `foo.Bar.`) is ignored."
+  [match]
+  (let [last-seg (-> match
+                     (str/replace #"\.$" "")
+                     (str/split #"\.")
+                     last)]
+    (and (seq last-seg)
+         (Character/isUpperCase ^char (first last-seg)))))
+
 (defn- source-replacement [old-sym new-sym match]
   (let [old-ns-ref      (name old-sym)
         new-ns-ref      (name new-sym)
@@ -259,7 +273,13 @@
       (str/replace match old-type-prefix new-type-prefix)
 
       (str/starts-with? match old-ns-ref-dot)
-      (str/replace match old-ns-ref-dot new-ns-ref-dot)
+      (let [replaced (str/replace match old-ns-ref-dot new-ns-ref-dot)]
+        ;; A fully-qualified class/record reference compiles to a Java package,
+        ;; so any dash introduced by the new prefix must become an underscore.
+        ;; A namespace/var reference keeps the dashes. See #73.
+        (if (class-reference? match)
+          (java-package replaced)
+          replaced))
 
       :default
       match)))
