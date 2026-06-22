@@ -11,6 +11,42 @@
     ;; a "n/a" version must not leak the slash into the prefix (see #64)
     "mrandersonna"    "mranderson"  "n/a"
     "mranderson000"   "mranderson"  "0.0.0"))
+(defn- temp-dir! []
+  (doto (java.io.File/createTempFile "mranderson-util" "")
+    (.delete)
+    (.mkdirs)))
+
+(t/deftest path-helpers-respect-srcdeps-root
+  ;; the repackaging path helpers used to assume a literal `target/srcdeps`
+  ;; layout (they dropped the first two path segments); they now take an
+  ;; explicit `srcdeps` root so they work with any target directory.
+  (let [srcdeps (temp-dir!)]
+    (try
+      (spit (doto (io/file srcdeps "full" "json.class") (-> .getParentFile .mkdirs)) "")
+      (spit (io/file srcdeps "full" "json$fn.class") "")
+      (spit (doto (io/file srcdeps "com" "example" "Widget.class") (-> .getParentFile .mkdirs)) "")
+      ;; a source file living under the same root must be ignored by class-files
+      (spit (doto (io/file srcdeps "full" "aws" "core.clj") (-> .getParentFile .mkdirs)) "(ns full.aws.core)")
+
+      (t/testing "srcdeps-relative strips the srcdeps prefix"
+        (t/is (= "full/json.class"
+                 (util/srcdeps-relative srcdeps (io/file srcdeps "full" "json.class")))))
+
+      (t/testing "class-files finds only the .class files under srcdeps"
+        (t/is (= #{"full/json.class" "full/json$fn.class" "com/example/Widget.class"}
+                 (set (map #(util/srcdeps-relative srcdeps %) (util/class-files srcdeps))))))
+
+      (t/testing "java-class-dirs lists the top-level dirs that hold class files"
+        (t/is (= #{"full" "com"} (util/java-class-dirs srcdeps))))
+
+      (t/testing "class-file->fully-qualified-name uses the srcdeps-relative path"
+        (t/is (= "com.example.Widget"
+                 (util/class-file->fully-qualified-name srcdeps (io/file srcdeps "com" "example" "Widget.class"))))
+        (t/is (= "full.json"
+                 (util/class-file->fully-qualified-name srcdeps (io/file srcdeps "full" "json.class")))))
+
+      (finally
+        (fs/delete-dir srcdeps)))))
 
 (t/deftest duplicated-files-test
   (t/is (= {}
