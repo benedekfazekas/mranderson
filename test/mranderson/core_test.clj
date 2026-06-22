@@ -79,6 +79,30 @@
           (let [content (slurp (io/file working-directory prefix "instaparse" "v1v4v12" "instaparse" "transform.cljc"))]
            (is (string/starts-with? content (str "(ns " ns-prefix ".instaparse.v1v4v12.instaparse.transform")))))))))
 
+(deftest t-resolved-tree-repackages-java-classes
+  ;; cljfmt pulls in the pure-Java diffutils, so inlining it (without skipping
+  ;; the java-class repackaging) exercises the jarjar pipeline end to end. This
+  ;; only works now that the repackaging operates on the configured `srcdeps`
+  ;; (the temp dir) rather than a hardcoded `target/srcdeps`.
+  (with-mranderson
+    [project {:dependencies '[^:inline-dep [cljfmt "0.7.0"]]
+              :files        []
+              :opts         {:unresolved-tree false}}]
+    (let [{:keys [working-directory]} project
+          name-version    (util/clean-name-version "mranderson-test" "0.1.0-SNAPSHOT")
+          class-file?     (fn [^File f] (and (.isFile f) (string/ends-with? (.getName f) ".class")))
+          all-class-files (->> (file-seq working-directory) (filter class-file?))]
+
+      (testing "the dependency tree contributes java .class files"
+        (is (seq all-class-files)))
+
+      (testing "every remaining .class file lives under the repackaged prefix"
+        (is (every? #(string/includes? (str %) (str "/" name-version "/")) all-class-files)))
+
+      (testing "diffutils' difflib package was repackaged under the prefix, original removed"
+        (is (.exists (io/file working-directory name-version "difflib")))
+        (is (not (.exists (io/file working-directory "difflib"))))))))
+
 (deftest t-copy-source-files
   (testing "Can merge files across overlapping dirs"
     (let [dir-a "test-resources/a"

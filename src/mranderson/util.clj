@@ -35,23 +35,24 @@
       (str/replace "-" "_")
       (str/replace "." File/separator)))
 
-(defn relevant-clj-dep-path [src-path prefix pprefix]
-  (let [pprefix-path-frag (sym->file-name pprefix)]
+(defn relevant-clj-dep-path [srcdeps src-path prefix pprefix]
+  (let [pprefix-path-frag (sym->file-name pprefix)
+        srcdeps-root      (str srcdeps "/")]
     (if-not (str/ends-with? src-path pprefix-path-frag)
-      (vector (str "target/srcdeps/"
+      (vector (str srcdeps-root
                    pprefix-path-frag
                    (-> src-path
                        (str/split (re-pattern pprefix-path-frag))
                        last)))
-      [(str "target/srcdeps/" prefix)])))
+      [(str srcdeps-root prefix)])))
 
 (defn clojure-source-files [dirs]
   (->> dirs
        clojure-source-files-relative
        (map #(.getCanonicalFile ^File %))))
 
-(defn class-files []
-  (let [dir (io/file "target/srcdeps")
+(defn class-files [srcdeps]
+  (let [dir (io/file srcdeps)
         subdirs (some-> (.listFiles ^File dir) seq)]
     (->> subdirs
          (filter #(.isDirectory ^File %))
@@ -60,13 +61,23 @@
                     (and (.isFile file)
                          (.endsWith (.getName file) ".class")))))))
 
-(defn class-file->fully-qualified-name [file]
-  (->> (-> file
-           str
+(defn srcdeps-relative
+  "Returns the path of `file` relative to the `srcdeps` root, using forward
+  slashes. `file` is expected to live under `srcdeps`, as everything produced by
+  walking the srcdeps tree does."
+  ^String [srcdeps file]
+  (let [root (str srcdeps)
+        path (str file)]
+    (-> (if (str/starts-with? path root)
+          (subs path (count root))
+          path)
+        (str/replace #"^[/\\]+" ""))))
+
+(defn class-file->fully-qualified-name [srcdeps file]
+  (->> (-> (srcdeps-relative srcdeps file)
            (str/split #"\.")
            first
            (str/split #"/"))
-       (drop 2)
        (str/join ".")))
 
 (defn class-name->package-name [class-name]
@@ -75,12 +86,11 @@
        (str/join ".")))
 
 (defn java-class-dirs
-  "lists subdirs of target/srcdeps which contain .class files"
-  []
-  (reduce #(->> (str/split (str %2) #"/")
-                (drop 2)
+  "lists subdirs of `srcdeps` which contain .class files"
+  [srcdeps]
+  (reduce #(->> (str/split (srcdeps-relative srcdeps %2) #"/")
                 first
-                ((partial conj %1))) #{} (class-files)))
+                ((partial conj %1))) #{} (class-files srcdeps)))
 
 (defn clean-name-version
   "Builds an identifier-safe prefix out of `pname` and `pversion`.
@@ -105,19 +115,14 @@
     (. rule setResult (str name-version "." java-dir ".@1"))
     rule))
 
-(defn apply-jarjar! [pname pversion]
-  (let [java-dirs (java-class-dirs)
+(defn apply-jarjar! [pname pversion srcdeps jar-file]
+  (let [java-dirs (java-class-dirs srcdeps)
         name-version (clean-name-version pname pversion)
         rules (map (partial create-rule name-version) java-dirs)
         processor (JjMainProcessor. rules false false)
-        jar-file (io/file (str "target/class-deps.jar"))]
-    (log/info (format "prefixing %s in target/class-deps.jar with %s" java-dirs name-version))
+        jar-file (io/file jar-file)]
+    (log/info (format "prefixing %s in %s with %s" java-dirs jar-file name-version))
     (StandaloneJarProcessor/run jar-file jar-file processor)))
-
-(defn remove-2parents ^String [file]
-  (->> (str/split (str file) #"/")
-       (drop 2)
-       (str/join "/")))
 
 (defn mranderson-version []
   (let [v (-> (io/resource "mranderson/project.clj")

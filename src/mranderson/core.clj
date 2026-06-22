@@ -139,17 +139,17 @@
       ""))
 
 (defn- class-deps-jar!
-  "creates jar containing the deps class files"
-  []
-  (log/info "jaring all class file dependencies into target/class-deps.jar")
-  (with-open [file (io/output-stream "target/class-deps.jar")
+  "creates `jar-file` containing the class files found under `srcdeps`"
+  [srcdeps jar-file]
+  (log/info "jaring all class file dependencies into" (str jar-file))
+  (with-open [file (io/output-stream jar-file)
               zip (ZipOutputStream. file)
               writer (io/writer zip)]
-    (let [class-files (u/class-files)]
+    (let [class-files (u/class-files srcdeps)]
       (binding [*out* writer]
         (doseq [class-file class-files]
           (with-open [input (io/input-stream class-file)]
-            (.putNextEntry zip (ZipEntry. (u/remove-2parents class-file)))
+            (.putNextEntry zip (ZipEntry. (u/srcdeps-relative srcdeps class-file)))
             (io/copy input zip)
             (flush)
             (.closeEntry zip)))))))
@@ -173,19 +173,19 @@
         (and (.isDirectory f) (empty? (.listFiles f)))
         (.delete f)))))
 
-(defn- replace-class-deps! []
-  (log/info "deleting class files in target/srcdeps...")
-  (doseq [class-dir (u/java-class-dirs)]
-    (delete-class-files! (fs/file "target/srcdeps" class-dir))
+(defn- replace-class-deps! [srcdeps jar-file]
+  (log/info "deleting class files in" (str srcdeps) "...")
+  (doseq [class-dir (u/java-class-dirs srcdeps)]
+    (delete-class-files! (fs/file srcdeps class-dir))
     (log/info "  " class-dir " class files deleted"))
-  (log/info "unzipping repackaged class-deps.jar into target/srcdeps")
-  (unzip (fs/file "target/class-deps.jar") (fs/file "target/srcdeps/")))
+  (log/info "unzipping repackaged" (str jar-file) "into" (str srcdeps))
+  (unzip (fs/file jar-file) (fs/file srcdeps)))
 
-(defn- filter-clj-files [imports package-names]
+(defn- filter-clj-files [imports package-names srcdeps]
   (if (seq package-names)
     (->> (filter (fn [[_ import]] (some #(str/includes? import %) package-names)) imports)
          (map first)
-         (map (partial str "target/srcdeps/")))
+         (map (partial str srcdeps "/")))
     []))
 
 (defn- prefix-occurrences
@@ -223,17 +223,17 @@
         prefix (some-> (first prefix)
                        (str/replace "-" "_")
                        (str/replace "." "/"))
-        clj-dep-path (u/relevant-clj-dep-path src-path prefix pprefix)
+        clj-dep-path (u/relevant-clj-dep-path srcdeps src-path prefix pprefix)
         clj-files (u/clojure-source-files-relative clj-dep-path)
         imports (->> clj-files
-                     (reduce #(conj %1 (retrieve-import srcdeps (u/remove-2parents %2))) [])
+                     (reduce #(conj %1 (retrieve-import srcdeps (u/srcdeps-relative srcdeps %2))) [])
                      (remove nil?)
                      doall)
-        class-names (map u/class-file->fully-qualified-name (u/class-files))
+        class-names (map (partial u/class-file->fully-qualified-name srcdeps) (u/class-files srcdeps))
         package-names (->> class-names
                            (map u/class-name->package-name)
                            set)
-        clj-files (filter-clj-files imports package-names)]
+        clj-files (filter-clj-files imports package-names srcdeps)]
     (when (seq clj-files)
       (log/info (format "    prefixing imports in clojure files in '%s' ..." (str/join ":" clj-dep-path)))
       (log/debug "      class-names" class-names)
@@ -409,7 +409,7 @@
   - expositions: transient dependencies made available for the project source files in unresolved tree mode
   - watermark: meta flag to mark inlined dependencies"
 
-  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides] :as ctx} paths]
+  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides srcdeps] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
         overrides                   (or (and unresolved-tree overrides) {})
@@ -418,10 +418,11 @@
     (if unresolved-tree
       (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
-    (when-not (or skip-repackage-java-classes (empty? (u/class-files)))
-      (class-deps-jar!)
-      (u/apply-jarjar! pname pversion)
-      (replace-class-deps!))))
+    (when-not (or skip-repackage-java-classes (empty? (u/class-files srcdeps)))
+      (let [jar-file (fs/file (fs/parent srcdeps) "class-deps.jar")]
+        (class-deps-jar! srcdeps jar-file)
+        (u/apply-jarjar! pname pversion srcdeps jar-file)
+        (replace-class-deps! srcdeps jar-file)))))
 
 (def default-repositories
   "Maven repositories used to resolve dependencies when none are supplied."
