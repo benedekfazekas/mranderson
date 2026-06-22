@@ -43,6 +43,10 @@
              :kaocha {:eval-in :sub-process
                       :dependencies [[lambdaisland/kaocha "1.91.1392"]
                                      [lambdaisland/kaocha-cloverage "1.1.89"]]}}
-  :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner"]
-            "kaocha-watch" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--watch"]
-            "kaocha-coverage" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--plugin" "cloverage"]})
+  ;; the perf benchmark (mranderson.benchmark) is excluded from normal runs; run
+  ;; it explicitly with `lein test :benchmark`.
+  :test-selectors {:default   (complement :benchmark)
+                   :benchmark :benchmark}
+  :aliases {"kaocha" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--skip-meta" ":benchmark"]
+            "kaocha-watch" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--watch" "--skip-meta" ":benchmark"]
+            "kaocha-coverage" ["with-profile" "+kaocha" "run" "-m" "kaocha.runner" "--plugin" "cloverage" "--skip-meta" ":benchmark"]})
