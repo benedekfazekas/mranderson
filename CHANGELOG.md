@@ -17,6 +17,7 @@
 ## Changes
 
 - [#89](https://github.com/benedekfazekas/mranderson/issues/89) Warn when `:aot` is configured, since inlining AOT-compiled namespaces produces broken prefixes
+- [#69](https://github.com/benedekfazekas/mranderson/issues/69) Document the local build/install workflow and fix the `Makefile` so `make install` installs an inlined MrAnderson to the local maven repo
 - [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] add `mranderson.core/inline-deps`, a Leiningen-free entry point usable from `tools.build`/`tools.deps`
 - [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] uncouple MrAnderson from leiningen to support general use 
 - [maint [#66](https://github.com/benedekfazekas/mranderson/issues/66)] bump MrAnderson dependencies
