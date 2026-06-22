@@ -7,6 +7,7 @@
 
 - [fix [#73](https://github.com/benedekfazekas/mranderson/issues/73)] Munge the package of fully-qualified class/record references to Java style so a dash in the prefix doesn't produce broken references
 - [fix [#64](https://github.com/benedekfazekas/mranderson/issues/64)] Strip non-alphanumeric characters (e.g. a `/` in a `n/a` version) from the generated prefix so they don't break imports
+- [fix [#54](https://github.com/benedekfazekas/mranderson/issues/54)] [fix [#92](https://github.com/benedekfazekas/mranderson/issues/92)] Rewrite Java `:import`s of inlined classes in top-level dependency namespaces and in the consuming project's own sources, which the per-dependency pass missed
 - [fix [#52](https://github.com/benedekfazekas/mranderson/issues/52)] Rewrite Java `:import`s by exact class rather than by package, so a class that merely shares a package with a repackaged one is left untouched
 - [[#33](https://github.com/benedekfazekas/mranderson/issues/33)] Split a mixed `(:import [pkg A B])` so a deftype-generated class and a real Java class in the same package each get the correct prefix
 - Java-class repackaging now operates on the configured `srcdeps` directory instead of a hardcoded `target/srcdeps`, so it works with `mranderson.core/inline-deps` and a custom `:target-path`
