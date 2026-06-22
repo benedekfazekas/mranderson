@@ -2,8 +2,9 @@
 
 ## Unreleased
 
+## 0.6.0
 
-## Bug fixes
+### Bug fixes
 
 - [fix [#61](https://github.com/benedekfazekas/mranderson/issues/61)] Repoint `(load "…")` resource paths when a namespace is relocated, so libraries that `load` companion files (e.g. `tools.deps.alpha`) inline correctly
 - [fix [#73](https://github.com/benedekfazekas/mranderson/issues/73)] Munge the package of fully-qualified class/record references to Java style so a dash in the prefix doesn't produce broken references
@@ -21,7 +22,7 @@
 - [fix [#90](https://github.com/benedekfazekas/mranderson/issues/90)] Fix spade/core.cljs not found
 - [fix [#76](https://github.com/benedekfazekas/mranderson/issues/76)] Consider `org.clojure/core.rrb-vector` as part of clojure.core
 
-## Changes
+### Changes
 
 - [#89](https://github.com/benedekfazekas/mranderson/issues/89) Warn when `:aot` is configured, since inlining AOT-compiled namespaces produces broken prefixes
 - [#69](https://github.com/benedekfazekas/mranderson/issues/69) Document the local build/install workflow and fix the `Makefile` so `make install` installs an inlined MrAnderson to the local maven repo

@@ -1,10 +1,14 @@
-(def project-version "0.5.4-SNAPSHOT")
+(def project-version "0.6.0")
 
 (defproject thomasa/mranderson project-version
   :description "Dependency inlining and shadowing tool."
   :url "https://github.com/benedekfazekas/mranderson"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :deploy-repositories [["clojars" {:url "https://repo.clojars.org"
+                                    :username :env/clojars_username
+                                    :password :env/clojars_password
+                                    :sign-releases false}]]
   :eval-in :leiningen
   :java-source-paths ["java-src"]
   :javac-options ~(if (re-find #"^1\.8\." (System/getProperty "java.version"))
