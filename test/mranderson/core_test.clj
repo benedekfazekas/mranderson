@@ -34,6 +34,40 @@
 
 ;; ## Tests
 
+(deftest t-unresolved-tree
+  ;; Unresolved-tree mode nests each transitive dependency under its parent
+  ;; (fipp under puget), unlike the flat resolved-tree layout. This whole mode
+  ;; was previously untested end to end.
+  (with-mranderson
+    [project {:dependencies '[^:inline-dep [mvxcvi/puget "1.0.2"]]
+              :files        [{:path    "mrt/main.clj"
+                              :content "(ns mrt.main (:require [puget.printer :as p]))"}]
+              :opts         {:skip-repackage-java-classes true
+                             :unresolved-tree             true}}]
+    (let [{:keys [working-directory prefix ns-prefix]} project
+          puget-dir      (io/file working-directory prefix "puget" "v1v0v2")
+          puget-printer  (io/file puget-dir "puget" "printer.clj")
+          nested-fipp    (io/file puget-dir "fipp" "v0v6v10" "fipp" "ednize.clj")
+          nested-fipp-ns (str ns-prefix ".puget.v1v0v2.fipp.v0v6v10.fipp")]
+
+      (testing "the dependency is shadowed under the project prefix"
+        (is (.exists puget-printer))
+        (is (string/includes? (slurp puget-printer)
+                              (str ns-prefix ".puget.v1v0v2.puget.printer"))))
+
+      (testing "a transitive dep is nested under its parent (the unresolved-tree hallmark)"
+        (is (.exists nested-fipp))
+        (is (string/includes? (slurp nested-fipp) (str nested-fipp-ns ".ednize"))))
+
+      (testing "cross-dependency references resolve to the nested prefix"
+        (is (some #(string/includes? (slurp %) nested-fipp-ns)
+                  (filter #(.endsWith (.getName ^File %) ".clj") (file-seq puget-dir)))
+            "puget should reference fipp via its nested shadow prefix"))
+
+      (testing "the project's own require is rewritten to the shadowed dependency"
+        (is (string/includes? (slurp (io/file working-directory "mrt" "main.clj"))
+                              (str ns-prefix ".puget.v1v0v2.puget.printer")))))))
+
 (deftest t-resolved-tree-and-skip-java-repackage-classes
   (with-mranderson
     [project {:dependencies dependencies
