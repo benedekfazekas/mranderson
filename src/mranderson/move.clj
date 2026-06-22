@@ -70,6 +70,15 @@
 (defn- java-package [sym]
   (str/replace (name sym) "-" "_"))
 
+(defn- load-param
+  "Renders `sym` as the resource path used by `(load \"…\")`: dots become
+  slashes and dashes underscores, e.g. `clojure.tools.deps.alpha` ->
+  `clojure/tools/deps/alpha`."
+  [sym]
+  (-> (name sym)
+      (str/replace "." "/")
+      (str/replace "-" "_")))
+
 (defn- java-style-prefix?
   [old-sym node]
   (when-not (#{:uneval} (z/tag node))
@@ -259,7 +268,9 @@
         old-pkg-prefix  (java-package old-sym)
         new-pkg-prefix  (java-package new-sym)
         old-type-prefix (str "^" (java-package old-sym))
-        new-type-prefix (str "^" (java-package new-sym))]
+        new-type-prefix (str "^" (java-package new-sym))
+        old-load-param  (load-param old-sym)
+        new-load-param  (load-param new-sym)]
     (cond
 
       (= match old-ns-ref)
@@ -281,6 +292,10 @@
           (java-package replaced)
           replaced))
 
+      ;; a `(load "…")` resource path, in slash/underscore form. See #61.
+      (str/starts-with? match old-load-param)
+      (str/replace match old-load-param new-load-param)
+
       :default
       match)))
 
@@ -291,7 +306,12 @@
   #"\"?[a-zA-Z0-9$%*+=?!<>^_-]['.a-zA-Z0-9$%*+=?!<>_-]*")
 
 (defn- replace-in-source [source-sans-ns old-sym new-sym]
-  (str/replace source-sans-ns symbol-regex (partial source-replacement old-sym new-sym)))
+  ;; `symbol-regex` never matches a `(load "…")` resource path (it stops at `/`),
+  ;; so try the slash/underscore form of the namespace first. See #61.
+  (let [regex (re-pattern (str (java.util.regex.Pattern/quote (load-param old-sym))
+                               "|"
+                               (.pattern ^java.util.regex.Pattern symbol-regex)))]
+    (str/replace source-sans-ns regex (partial source-replacement old-sym new-sym))))
 
 (defn- after-platform-marker? [platform node]
   (when-not (#{:uneval} (z/tag node))
