@@ -57,8 +57,7 @@
        (map cljfile->prefix)
        (remove #(str/blank? %))
        (remove #(= "clojure.core" %))
-       frequencies
-       keys
+       distinct
        (map #(str/replace % "_" "-"))))
 
 (defn- replacement-prefix [pprefix src-path art-name art-version underscorize?]
@@ -102,7 +101,7 @@
                     (not (re-matches #"\s" (-> ns-decl-fragment first str)))
                     (count clj-source)
 
-                    :default (recur (rest ns-decl-fragment) (inc index-of-open-bracket)))) clj-source))))
+                    :else (recur (rest ns-decl-fragment) (inc index-of-open-bracket)))) clj-source))))
 
 (defn- import-fragment [clj-source]
   (let [import-fragment-left (import-fragment-left clj-source)
@@ -124,7 +123,7 @@
                                    (= \) (nth import-fragment-left index))
                                    (inc open-close)
 
-                                   :default open-close)))))))
+                                   :else open-close)))))))
 
 (defn- retrieve-import [file-prefix file]
   (let [cont (slurp (fs/file file-prefix file))

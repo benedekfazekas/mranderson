@@ -125,7 +125,7 @@
     (cond
       (symbol? old-node) (symbol new-node)
 
-      :default new-node)))
+      :else new-node)))
 
 (defn- ns-decl? [node]
   (when-not (#{:uneval} (z/tag node))
@@ -156,7 +156,7 @@
     (cond
       (symbol? old-node) (symbol new-node)
 
-      :default new-node)))
+      :else new-node)))
 
 (defn- replace-in-import* [import-loc old-sym new-sym]
   (loop [loc import-loc]
@@ -296,7 +296,7 @@
       (str/starts-with? match old-load-param)
       (str/replace match old-load-param new-load-param)
 
-      :default
+      :else
       match)))
 
 (def ^:private symbol-regex
