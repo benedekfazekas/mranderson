@@ -4,6 +4,14 @@
             [clojure.java.io :as io]
             [clojure.test :as t]))
 
+(t/deftest clean-name-version-test
+  (t/are [expected pname pversion] (= expected (util/clean-name-version pname pversion))
+    "mranderson010"   "mranderson"  "0.1.0"
+    "mranderson010"   "mr-anderson" "0.1.0"
+    ;; a "n/a" version must not leak the slash into the prefix (see #64)
+    "mrandersonna"    "mranderson"  "n/a"
+    "mranderson000"   "mranderson"  "0.0.0"))
+
 (t/deftest duplicated-files-test
   (t/is (= {}
            (util/duplicated-files [(str (fs/file "a" "b" "c"))

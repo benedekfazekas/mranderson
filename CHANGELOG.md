@@ -5,6 +5,7 @@
 
 ## Bug fixes
 
+- [fix [#64](https://github.com/benedekfazekas/mranderson/issues/64)] Strip non-alphanumeric characters (e.g. a `/` in a `n/a` version) from the generated prefix so they don't break imports
 - [fix [#78](https://github.com/benedekfazekas/mranderson/issues/78)] Fix watermarking moved namespaces 
 - [fix [#53](https://github.com/benedekfazekas/mranderson/issues/53)] Fix inlining where one directory name in the library is a substring of an other directory name
 - [fix [#49](https://github.com/benedekfazekas/mranderson/issues/49)] Options accepted from both CLI and the project map

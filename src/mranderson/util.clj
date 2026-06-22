@@ -83,9 +83,14 @@
                 ((partial conj %1))) #{} (class-files)))
 
 (defn clean-name-version
+  "Builds an identifier-safe prefix out of `pname` and `pversion`.
+
+  Strips every non-alphanumeric character so that names or versions
+  containing characters like `/` (e.g. a version of \"n/a\") don't leak
+  into the generated package/namespace prefix and break imports."
   [pname pversion]
-  (str (str/replace pname #"[\._-]" "")
-       (str/replace pversion #"[\._-]" "")))
+  (str (str/replace pname #"[^a-zA-Z0-9]" "")
+       (str/replace pversion #"[^a-zA-Z0-9]" "")))
 
 (defn first-src-path [root source-paths]
   (apply str (drop (inc (count root)) (first source-paths))))
