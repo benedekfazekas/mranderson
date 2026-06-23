@@ -6,19 +6,31 @@
 
 # MrAnderson
 
-MrAnderson is a dependency inlining and shadowing tool. It isolates the project's dependencies so they can not interfere with other libraries' dependencies.
+MrAnderson is a dependency inlining tool for Clojure. It copies the dependencies you choose into your own project under a private name and rewrites every reference to them, so your copies can't collide with anyone else's on the classpath. (This technique has a few names: inlining, shading, vendoring. They mean the same thing here.)
+
+The problem it solves: the JVM loads one version of any given class, full stop. If two of your dependencies need different, incompatible versions of a third one, something breaks and no amount of version-pinning fixes it. Inlining sidesteps that by giving your copy a name nobody else can clash with.
 
 ## Is it good? Should I use it?
 
 Yes and yes.
 
-Use it if you have dependency conflicts and don't care to solve them. In **unresolved tree** mode MrAnderson creates deeply nested, local dependencies where any subtree is isolated from the rest of the tree therefore the same library can occur several times without conflicting. Or use it if you don't want your library's dependencies to interfere with the dependencies of your users' (leiningen plugins is a good example here). Or if you want to explore a bit more in the hellish land of dependency handling.
+Reach for it when you have a dependency conflict you can't (or don't want to) untangle by hand. The headline case is **unresolved tree** mode, where MrAnderson makes deeply nested, local copies of dependencies so that every subtree is isolated and the same library can appear many times without conflict. It's also the right tool when you don't want your library's dependencies leaking onto your users (Leiningen plugins are the classic example). And it's there if you just want to poke around the darker corners of dependency handling.
+
+If you want the longer story, [Why MrAnderson exists](doc/rationale.md) covers the problem, an honest comparison to the alternatives, and when *not* to reach for it. New to Clojure or the JVM? The [glossary](doc/glossary.md) defines the jargon.
+
+## Documentation
+
+- [Why MrAnderson exists](doc/rationale.md) - the rationale, alternatives, and trade-offs.
+- [How MrAnderson works](doc/design.md) - the architecture and the rewriting engine, for anyone changing the internals.
+- [Glossary](doc/glossary.md) - plain-English definitions of the Clojure/JVM terms used throughout.
+- [Contributing](CONTRIBUTING.md) - building, testing, and the self-hosting bootstrap.
+- API docs and these articles render together on [cljdoc](https://cljdoc.org/d/thomasa/mranderson/CURRENT).
 
 ## Usage
 
-MrAnderson is a leiningen plugin. Put `[thomasa/mranderson "0.6.0"]` into the `:plugins` vector of your project.clj. You can also use it directly not as a leiningen plugin, see [conjure-deps](https://github.com/Olical/conjure-deps) for an example.
+MrAnderson is a [Leiningen](https://leiningen.org) plugin (Leiningen is a common Clojure build tool; `project.clj` is its config file). Put `[thomasa/mranderson "0.6.0"]` into the `:plugins` vector of your `project.clj`. You don't have to use Leiningen, though, see [Using MrAnderson without Leiningen](#using-mranderson-without-leiningen-toolsdeps--toolsbuild) below and [conjure-deps](https://github.com/Olical/conjure-deps) for an example.
 
-Mark some of the dependencies in your dependencies vector in the project's `project.clj` with `^:inline-dep` meta tag. For example:
+Mark the dependencies you want inlined with the `^:inline-dep` metadata tag (only the marked ones get processed). For example:
 
 ```clojure
 :dependencies [[org.clojure/clojure "1.5.1"]
@@ -33,9 +45,9 @@ Then run
 
     $ lein inline-deps
 
-This retrieves and modifies the marked dependencies and copies them to `target/srcdeps` together with the modified project files -- their references to the dependencies need to change too.
+This retrieves the marked dependencies, rewrites them, and copies the result to `target/srcdeps`. Your own project files are copied and rewritten too, since their references to those dependencies have to point at the new inlined names.
 
-After this you can start the REPL in the context of your inlined dependencies
+The `plugin.mranderson/config` profile below puts `target/srcdeps` on the classpath, so the REPL, your tests, and the jar you build all use the inlined copies instead of the originals. Start a REPL in the context of your inlined dependencies with
 
     $ lein with-profile +plugin.mranderson/config repl
 
@@ -47,13 +59,18 @@ Release locally
 
     $ lein with-profile +plugin.mranderson/config install
 
-Release to clojars
+Release to Clojars
 
     $ lein with-profile +plugin.mranderson/config deploy clojars
 
-Alternatively the modified dependencies and project files can be copied back to the source tree and stored in version control. In this case you don't need the above mentioned built in leiningen profile.
+Alternatively the modified dependencies and project files can be copied back to the source tree and stored in version control. In this case you don't need the above mentioned built-in Leiningen profile.
 
 ### Using MrAnderson without Leiningen (tools.deps / tools.build)
+
+Clojure projects tend to use one of two build tools: Leiningen (`project.clj`,
+above) or the Clojure CLI / tools.deps (`deps.edn`). They're alternatives, not
+layers, so use whichever your project already has. Everything above is for
+Leiningen; here's the same thing for tools.deps.
 
 You don't need Leiningen to run MrAnderson. The `mranderson.core/inline-deps`
 function is a plain, data-driven entry point that does the same work as the
@@ -100,9 +117,11 @@ See the docstring of `mranderson.core/inline-deps` for the full list of options.
 
 ### Two modes: resolved tree and unresolved tree
 
-MrAnderson has **two modes**. It can either work on an **unresolved** dependency **tree** and create a deeply nested directory structure for the unresolved tree based on the marked dependencies or only shadow a list of dependencies based on a **resolved dependency** tree of the same dependencies. The latter is the default.
+**Which one do you want?** Almost certainly the default, **resolved tree**. Reach for **unresolved tree** only when two of your dependencies need genuinely incompatible versions of a third one, since that's the conflict resolution can't paper over. The rest of this section explains the difference.
 
-In **unresolved tree** mode the same library -- even the same version of the library -- can occur multiple times in the unresolved dependency tree. When processing the tree MrAnderson walks it in a depth first order and creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
+MrAnderson has **two modes**. In **resolved tree** mode (the default) it shadows a flat, conflict-resolved list of dependencies. In **unresolved tree** mode it works on the full, unresolved tree and builds a deeply nested directory structure from the marked dependencies.
+
+In **unresolved tree** mode the same library (even the same version of the library) can occur multiple times in the unresolved dependency tree. When processing the tree MrAnderson walks it in a depth first order and creates a deeply nested directory structure and prefixes the namespaces and the references to them according to this directory structure.
 
 Let's see [cider-nrepl](https://github.com/clojure-emacs/cider-nrepl)'s list of dependencies in the project file (as it is at the time of writing this README):
 
@@ -159,6 +178,8 @@ An example namespace of `[org.clojure/tools.reader "0.10.0"]` dependency of `[re
 (ns ^{:mranderson/inlined true} cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.toolsreader.v0v10v0.clojure.tools.reader.edn)
 ```
 
+(Versions are encoded into the path with dots replaced by `v`, so `0.10.0` becomes `v0v10v0`. Dots already mean something in a namespace, so they can't be left as-is.)
+
 and a reference to it in `cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.rewrite-clj.reader` like this:
 
 ```clojure
@@ -166,7 +187,7 @@ and a reference to it in `cider.inlined-deps.cljfmt.v0v6v4.rewrite-clj.v0v6v0.re
              [edn :as edn])
 ```
 
-In the **resolved tree** mode MrAnderson flattens the resolved dependency tree out into a topoligically ordered list and processes this ordered list. While processing MrAnderson prefixes all namespaces in the dependencies and the references to them. This also means that all dependencies even transient ones are handled as first level dependencies as they can only occur once in a resolved dependency tree.
+In the **resolved tree** mode MrAnderson flattens the resolved dependency tree out into a topologically ordered list and processes this ordered list. While processing MrAnderson prefixes all namespaces in the dependencies and the references to them. This also means that all dependencies, even transitive ones, are handled as first level dependencies: Maven's conflict resolution has already pinned every coordinate to a single version, so there's exactly one rename target per namespace.
 
 And the resolved tree of the same project:
 
@@ -191,7 +212,7 @@ And the resolved tree of the same project:
  [org.clojure/tools.reader "1.2.2"]
 ```
 
-The same namespace from `tools.reader` -- note that there is only one version of it available in the dependency tree `1.2.2`:
+The same namespace from `tools.reader` (note that there is only one version of it available in the dependency tree, `1.2.2`):
 
 ```clojure
 (ns ^{:mranderson/inlined true} cider.inlined-deps.toolsreader.v1v2v2.clojure.tools.reader.edn)
@@ -204,15 +225,15 @@ and a reference to it in `cider.inlined-deps.rewrite-clj.v0v6v0.rewrite-clj.read
              [edn :as edn])
 ```
 
-In the **unresolved tree** mode the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library does not work. Also in this mode MrAnderson applies transient dependency hygiene meaning that it does not search and replace occurrances of a transient depedency namespace in the project's own files. To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
+In the **unresolved tree** mode the usual way of overriding dependencies, eg. putting a first level dependency in the project file with a newer version of a library, does not work. Also in this mode MrAnderson applies transitive dependency hygiene, meaning that it does not search and replace occurrences of a transitive dependency namespace in the project's own files (your own files shouldn't be reaching into someone else's transitive dependencies in the first place). To work around these limitations you can create a MrAnderson specific section in the project file and define overrides as such:
 
 ```clojure
 :mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}
 ```
 
-Note that the key in the overrides map is a path to a dependency in the unresolved dependency tree and the value is the new depedency node.
+Note that the key in the overrides map is a path to a dependency in the unresolved dependency tree and the value is the new dependency node.
 
-In the same section you can instruct MrAnderson to expose certain transient dependencies to the project's own source files as such:
+In the same section you can instruct MrAnderson to expose certain transitive dependencies to the project's own source files as such:
 
 ```clojure
 :mranderson {:expositions [[mvxcvi/puget fipp]]}
@@ -232,7 +253,7 @@ or you can provide the same flag on the command line:
 
 The latter supersedes the former.
 
-Again: in the **resolved tree** mode no transient dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
+Again: in the **resolved tree** mode no transitive dependency hygiene is applied. Also the above described config options (*overrides* and *expositions*) don't take effect.
 
 ### Further config options
 
@@ -249,12 +270,12 @@ below; see its docstring for the authoritative list.
 | watermark                | :mranderson/inlined            |  MrAnderson adds `watermark` as metadata to inlined namespaces. This allows tools like [cljdoc](https://cljdoc.org) to exclude inlined namespaces from a library's documented API. Cljdoc, for example, automatically excludes namespaces with any of `:mranderson/inlined`, `:no-doc`, `:skip-wiki` metadata. | `:mranderson {:watermark nil}` to switch off watermarking or provide your own keyword        |
 | unresolved-tree          | false                          |  Switch between **unresolved tree** and **resolved tree** mode | `lein inline-deps :unresolved-tree true` |
 | overrides                | empty list                     |  Defines dependency overrides in **unresolved tree** mode | `:mranderson {:overrides {[mvxcvi/puget fipp] [fipp "0.6.15"]}}` |
-| expositions              | empty list                     |  Makes transient dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
+| expositions              | empty list                     |  Makes transitive dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 | included-source-paths    | nil                            |  (Leiningen task only.) Determines which of the provided `:source-paths` (not `:test-paths`!) will be inlined. If `nil` or `:first`, the first source path (typically `"src"`) will be the only one to be processed. If set to `:source-paths`, all `:source-paths` will be processed. If set to a vector, that vector will be interpreted as the list of source dirs to be processed, as-is, ignoring the project's `:source-paths` value. |
 
 ## Prerequisites
 
-Leiningen 2.9.1 or above. For MrAnderson to work, does not mean your project is restricted to a java or clojure version.
+Leiningen 2.9.1 or newer. MrAnderson itself needs that, but it doesn't constrain your project to any particular Java or Clojure version.
 
 ### Supported OSes and platforms
 
@@ -266,35 +287,27 @@ MrAnderson is tested and supported on Linux and macOS. Windows systems are not s
 - [refactor-nrepl](https://github.com/clojure-emacs/refactor-nrepl)
 - [re-frame-10x](https://github.com/Day8/re-frame-10x)
 - [iced-nrepl](https://github.com/liquidz/iced-nrepl)
-- [conjure](https://github.com/Olical/conjure) via [conjure-deps](https://github.com/Olical/conjure-deps) -- uses MrAnderson directly, not as a `leiningen` plugin
+- [conjure](https://github.com/Olical/conjure) via [conjure-deps](https://github.com/Olical/conjure-deps) (uses MrAnderson directly, not as a Leiningen plugin)
 
 ## Development
 
-MrAnderson is a bit unusual to build because it inlines its own dependencies
-using itself, so it depends on itself as a Leiningen plugin. The `Makefile`
-wraps the moving parts:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (setup, tests, linting,
+CI, conventions) and [doc/design.md](doc/design.md) for how the engine works.
 
-- `make test` runs the unit tests.
-- `make integration-test` runs the integration tests (against `cider-nrepl` and
-  `refactor-nrepl`, see `scripts/integration_test.sh`).
-- `make bootstrap-install` installs MrAnderson to your local maven repository
-  *without* inlining, which is needed to satisfy the self-dependency on the
-  plugin.
-- `make inline` bootstraps and then produces an inlined build under
-  `target/srcdeps`.
-- `make install` installs an inlined MrAnderson to your local maven repository,
-  so other projects on your machine can depend on it.
-- `make deploy` deploys an inlined release to Clojars.
+MrAnderson is a little unusual to build: it inlines its own dependencies using
+itself, so it depends on itself as a Leiningen plugin. The `Makefile` wraps that
+bootstrap. See [CONTRIBUTING.md](CONTRIBUTING.md) for the targets and the full
+workflow, and [doc/design.md](doc/design.md) for how the engine works.
 
 ## Related project
 
-A really nice wrapper of mranderson can be found [here](https://github.com/xsc/lein-isolate).
+A friendly Leiningen wrapper around MrAnderson lives at [lein-isolate](https://github.com/xsc/lein-isolate).
 
 ## Credits
 
 - The engine of namespace renaming/moving `mranderson.move` although heavily modified now is based on Stuart Sierra's `clojure.tools.namespace.move` namespace from [tools.namespace](https://github.com/clojure/tools.namespace).
-- Some ideas around namespace renaming/moving was borrowed from @expez my co-maintainer for [refactor-nrepl](https://github.com/clojure-emacs/refactor-nrepl) in their fabolous work of `rename-file-or-dir` feature.
-- @cichli did a round of profiling and perfromance/parallelisation fixes on mranderson which I took insipiration from
+- Some ideas around namespace renaming/moving were borrowed from @expez, my co-maintainer for [refactor-nrepl](https://github.com/clojure-emacs/refactor-nrepl), in their fabulous work on the `rename-file-or-dir` feature.
+- @cichli did a round of profiling and performance/parallelisation fixes on mranderson which I took inspiration from
 - Had amazing feedback, conversations around MrAnderson and dependencies with @bbatsov (MrAnderson's main client), @reborg, @SevereOverfl0w, @andrewmcveigh. Really grateful for the community and these nice people in particular.
 
 ## License
