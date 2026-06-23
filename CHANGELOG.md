@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+- Leave a fully-qualified reference to a repackaged Java class (e.g. `(some.pkg.Widget. ...)`) untouched during the namespace move when its package is also a moved namespace, so the java-import pass can point it at the jarjar-repackaged class instead of the namespace prefix (otherwise it threw `ClassNotFoundException` at runtime). Deftype/defrecord classes, which have no `.class` file, still move with their namespace
 - [#33](https://github.com/benedekfazekas/mranderson/issues/33) Split a mixed `(:import ...)` correctly when a deftype class and a repackaged Java class share a package (e.g. claypoole): the Java class now points at its jarjar package even though the namespace move has already prefixed the shared package
 - [#97](https://github.com/benedekfazekas/mranderson/issues/97) Prefix repackaged Java classes referenced in a namespace body even when the file has no `(:import ...)` form (previously such references were left bare and threw `ClassNotFoundException` at runtime)
 

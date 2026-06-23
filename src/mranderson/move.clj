@@ -390,19 +390,32 @@
   maps a first segment to the renames whose namespace starts with it; candidates
   are pre-sorted longest-namespace-first so a more specific prefix wins. Tokens
   whose first segment matches no rename (the vast majority) are returned as-is
-  without touching any rename."
-  [by-segment match]
-  (reduce (fn [_ {:keys [old-sym new-sym]}]
-            (let [replaced (source-replacement old-sym new-sym match)]
-              (if (= replaced match) match (reduced replaced))))
-          match
-          (get by-segment (token-first-segment match))))
+  without touching any rename.
+
+  A token that is a repackaged Java class (`java-classes`, the fully-qualified
+  `.class` names) is left untouched even when its package is a moved namespace:
+  it must keep pointing at the class, which jarjar relocates to a different
+  prefix, so the java-import pass prefixes it instead. Deftype classes have no
+  `.class` and so move with their namespace as usual. See #97."
+  [by-segment java-classes match]
+  (let [candidates (get by-segment (token-first-segment match))]
+    (if (or (empty? candidates)
+            ;; strip a leading quote/caret and a trailing dot (constructor form
+            ;; `Class.`) so the bare class name is matched
+            (contains? java-classes (-> match (str/replace #"^[\"^]+" "") (str/replace #"\.$" ""))))
+      match
+      (reduce (fn [_ {:keys [old-sym new-sym]}]
+                (let [replaced (source-replacement old-sym new-sym match)]
+                  (if (= replaced match) match (reduced replaced))))
+              match
+              candidates))))
 
 (defn- replace-in-source-multi
   "Rewrites the ns body once for a whole batch of `renames`: a single regex scan
   whose replacement function dispatches by first segment to whichever rename
-  matches each token, instead of one full scan per rename."
-  [source-sans-ns renames]
+  matches each token, instead of one full scan per rename. References to
+  repackaged Java classes (`java-classes`) are left for the java-import pass."
+  [source-sans-ns renames java-classes]
   (if (empty? renames)
     source-sans-ns
     (let [by-segment (reduce (fn [m rename]
@@ -414,28 +427,31 @@
                                            (str/join "|"))
                                       "|"
                                       (.pattern ^java.util.regex.Pattern symbol-regex)))]
-      (str/replace source-sans-ns regex (partial source-replacement-multi by-segment)))))
+      (str/replace source-sans-ns regex (partial source-replacement-multi by-segment java-classes)))))
 
 (defn replace-ns-symbols
   "Applies a batch of `renames` to one file's `content` in a single pass: the ns
   form is parsed once and the body scanned once, rather than once per rename.
   `renames` is a seq of maps {:old-sym :new-sym :watermark :extension}. The
   result is equivalent to folding `replace-ns-symbol` over the renames, but
-  O(file) instead of O(file x renames)."
-  [content renames file-ext]
-  (if (empty? renames)
-    content
-    ;; longest namespace first so e.g. `a.b.c` is preferred over `a.b` when both
-    ;; could prefix-match the same token
-    (let [renames       (sort-by #(- (count (name (:old-sym %)))) renames)
-          [ns-loc body] (split-ns-form-ns-body content)
-          new-ns-form   (when ns-loc
-                          (reduce (fn [s rename] (apply-ns-rename-to-form s rename file-ext))
-                                  (z/root-string ns-loc)
-                                  renames))
-          new-body      (replace-in-source-multi body renames)]
-      (or (and new-ns-form (str/replace new-body ns-form-placeholder new-ns-form))
-          new-body))))
+  O(file) instead of O(file x renames). `java-classes` (optional) are
+  fully-qualified repackaged Java class names left untouched in the body."
+  ([content renames file-ext]
+   (replace-ns-symbols content renames file-ext #{}))
+  ([content renames file-ext java-classes]
+   (if (empty? renames)
+     content
+     ;; longest namespace first so e.g. `a.b.c` is preferred over `a.b` when both
+     ;; could prefix-match the same token
+     (let [renames       (sort-by #(- (count (name (:old-sym %)))) renames)
+           [ns-loc body] (split-ns-form-ns-body content)
+           new-ns-form   (when ns-loc
+                           (reduce (fn [s rename] (apply-ns-rename-to-form s rename file-ext))
+                                   (z/root-string ns-loc)
+                                   renames))
+           new-body      (replace-in-source-multi body renames java-classes)]
+       (or (and new-ns-form (str/replace new-body ns-form-placeholder new-ns-form))
+           new-body)))))
 
 (defn move-ns-file
   "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
@@ -496,21 +512,26 @@
   namespace's file extension) and `:watermark`. A rename is applied to a given
   file only when `update?` holds for that file and the rename's extension - the
   same per-rename behaviour as applying the renames one at a time, but without
-  re-scanning the directories and re-reading every file once per rename."
-  [renames dirs]
-  (when (seq renames)
-    (let [files (clojure-source-files-all dirs)]
-      (util/assert-no-duplicate-files files)
-      (->> files
-           (pmap-runner
-            (fn [file]
-              (let [file-ext   (util/file->extension (str file))
-                    ;; only the renames whose moved-namespace extension applies to
-                    ;; this file (the per-rename behaviour of `update?`)
-                    applicable (filterv #(update? (str file) (:extension %)) renames)]
-                (when (seq applicable)
-                  (update-file file (fn [content] (replace-ns-symbols content applicable file-ext)))))))
-           (doall)))))
+  re-scanning the directories and re-reading every file once per rename.
+
+  `java-classes` (optional) are fully-qualified repackaged Java class names that
+  the rewrite must leave untouched (they are prefixed by the java-import pass)."
+  ([renames dirs]
+   (replace-ns-symbols-in-source-files renames dirs #{}))
+  ([renames dirs java-classes]
+   (when (seq renames)
+     (let [files (clojure-source-files-all dirs)]
+       (util/assert-no-duplicate-files files)
+       (->> files
+            (pmap-runner
+             (fn [file]
+               (let [file-ext   (util/file->extension (str file))
+                     ;; only the renames whose moved-namespace extension applies to
+                     ;; this file (the per-rename behaviour of `update?`)
+                     applicable (filterv #(update? (str file) (:extension %)) renames)]
+                 (when (seq applicable)
+                   (update-file file (fn [content] (replace-ns-symbols content applicable file-ext java-classes)))))))
+            (doall))))))
 
 (defn replace-ns-symbol-in-source-files
   "Replaces all occurrences of the old name with the new name in

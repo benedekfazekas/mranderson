@@ -2,6 +2,7 @@
   (:require [mranderson.move :as sut]
             [clojure.test :as t]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [rewrite-clj.zip :as z])
   (:import [java.io File]))
 
@@ -402,3 +403,21 @@
       ;; the dash in the prefix becomes an underscore, like a package path
       "(load \"/cider/nrepl/inlined_deps/instaparse/gll/extra\")"
       "(load \"/instaparse/gll/extra\")")))
+
+(t/deftest replace-ns-symbols-leaves-java-classes-for-the-import-pass
+  ;; A fully-qualified reference to a repackaged java class whose package is also
+  ;; a moved namespace must be left bare by the namespace move, so the java-import
+  ;; pass can point it at the jarjar-relocated class rather than the (wrong)
+  ;; namespace prefix. Deftype classes have no .class and so are not in
+  ;; `java-classes`, and still move with their namespace.
+  (let [renames [{:old-sym 'com.acme.impl :new-sym 'pre.com.acme.impl
+                  :extension ".clj" :watermark nil}]
+        body    "(ns com.acme.impl)\n(defn make [] (com.acme.impl.Widget. 1))"]
+    (t/testing "a java class (in java-classes) is left untouched in the body"
+      (t/is (str/includes?
+             (sut/replace-ns-symbols body renames ".clj" #{"com.acme.impl.Widget"})
+             "(com.acme.impl.Widget. 1)")))
+    (t/testing "without that knowledge the move prefixes the ref (the latent bug)"
+      (t/is (str/includes?
+             (sut/replace-ns-symbols body renames ".clj")
+             "pre.com.acme.impl.Widget.")))))

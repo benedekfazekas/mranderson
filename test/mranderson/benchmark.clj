@@ -58,11 +58,11 @@
         inst-s (mk) inst-t (temp-dir "bench-target")
         orig    move/replace-ns-symbols-in-source-files]
     (with-redefs [move/replace-ns-symbols-in-source-files
-                  (fn [renames dirs]
+                  (fn [renames dirs & more]
                     (swap! calls inc)
                     (swap! scans + (count (clojure-source-files-all dirs)))
                     (let [t (System/nanoTime)
-                          r (orig renames dirs)]
+                          r (apply orig renames dirs more)]
                       (swap! rw-ms + (/ (- (System/nanoTime) t) 1e6))
                       r))]
       (inline! deps inst-s inst-t))

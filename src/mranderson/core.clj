@@ -77,6 +77,14 @@
     (when-not (= old new)
       (spit file new))))
 
+(defn- java-class-fqns
+  "Fully-qualified names of every bundled `.class` under `srcdeps` (their
+  original packages, before jarjar relocates them). The namespace move leaves
+  references to these untouched so the java-import pass can point them at the
+  repackaged classes. See #97."
+  [srcdeps]
+  (into #{} (map (partial u/class-file->fully-qualified-name srcdeps)) (u/class-files srcdeps)))
+
 (defn- import-fragment-left [^String clj-source]
   (let [index-of-import (.indexOf clj-source ":import")]
     (when (> index-of-import -1)
@@ -324,12 +332,14 @@
       (if-not unresolved-tree
         renames
         (let [all-deps-dirs (->> (concat [src-path] (map fs/file clj-dirs) parent-clj-dirs)
-                                 vec (mapv str) u/normalize-dirs (mapv fs/file))]
-          (move/replace-ns-symbols-in-source-files renames all-deps-dirs)
+                                 vec (mapv str) u/normalize-dirs (mapv fs/file))
+              java-classes  (java-class-fqns srcdeps)]
+          (move/replace-ns-symbols-in-source-files renames all-deps-dirs java-classes)
           (when (or (str/ends-with? src-path (u/sym->file-name pprefix)) expose?)
             (move/replace-ns-symbols-in-source-files
              (mapv #(assoc % :watermark nil) renames)
-             project-source-dirs))
+             project-source-dirs
+             java-classes))
           nil)))))
 
 (defn- remove-invalid-duplicates!
@@ -428,7 +438,7 @@
     ;; rather than once per artifact whose dir scope overlaps it.
     (let [renames (->> (t/walk-ordered-deps ordered-resolved-deps unzip-artifact! update-artifact! paths ctx)
                        (apply concat))]
-      (move/replace-ns-symbols-in-source-files renames [(:srcdeps ctx)]))))
+      (move/replace-ns-symbols-in-source-files renames [(:srcdeps ctx)] (java-class-fqns (:srcdeps ctx))))))
 
 (defn mranderson
   "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.
