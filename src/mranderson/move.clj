@@ -250,7 +250,14 @@
     (and (seq last-seg)
          (Character/isUpperCase ^char (first last-seg)))))
 
-(defn- source-replacement [old-sym new-sym match]
+(defn- source-replacement
+  "Decides what a single matched body token `match` becomes under the rename
+  `old-sym` -> `new-sym`. Handles each shape in turn: a bare namespace ref, a
+  package/underscore prefix, a `^`-prefixed type hint, a dotted namespace/class
+  reference (dashes become underscores for a class, see #73), and a
+  `(load \"...\")` slash/underscore resource path (#61). Returns `match`
+  unchanged when nothing applies."
+  [old-sym new-sym match]
   (let [old-ns-ref      (name old-sym)
         new-ns-ref      (name new-sym)
         old-ns-ref-dot  (str old-ns-ref ".")
@@ -307,14 +314,23 @@
   (when-not (#{:uneval} (z/tag node))
     (= platform (z/sexpr (z/left node)))))
 
-(defn- find-and-replace-platform-specific-subforms [platform ns-loc]
+(defn- find-and-replace-platform-specific-subforms
+  "In a `.cljc` ns form, masks the subforms belonging to `platform` (the opposite
+  platform from the one being moved) by replacing each with a `<platform>_require`
+  placeholder symbol, so the rename only touches the relevant branch. Returns
+  `[replaced-nodes ns-loc]`; pair with `restore-platform-specific-subforms`."
+  [platform ns-loc]
   (loop [loc         ns-loc
          found-nodes []]
     (if-let [found-node (z/find-next-depth-first loc (partial after-platform-marker? platform))]
       (recur (z/replace found-node (symbol (str (name platform) "_require"))) (conj found-nodes found-node))
       [found-nodes (z/of-node (z/root loc))])))
 
-(defn- restore-platform-specific-subforms [platform replaced-nodes ns-form]
+(defn- restore-platform-specific-subforms
+  "Inverse of `find-and-replace-platform-specific-subforms`: substitutes each
+  `<platform>_require` placeholder in the rewritten `ns-form` string back with the
+  original `replaced-nodes`."
+  [platform replaced-nodes ns-form]
   (loop [form             ns-form
          [n & rest-nodes] replaced-nodes]
     (if-not n
@@ -534,21 +550,22 @@
             (doall))))))
 
 (defn replace-ns-symbol-in-source-files
-  "Replaces all occurrences of the old name with the new name in
-  all Clojure source files found in dirs."
+  "Replaces all occurrences of `old-sym` with `new-sym` in every Clojure source
+  file under `dirs`. `extension` is the moved namespace's file extension (used to
+  decide which files a rename applies to) and `watermark` the metadata key
+  stamped on the renamed ns. A single-rename convenience wrapper over
+  `replace-ns-symbols-in-source-files`."
   [old-sym new-sym extension dirs watermark]
   (replace-ns-symbols-in-source-files
    [{:old-sym old-sym :new-sym new-sym :extension extension :watermark watermark}]
    dirs))
 
 (defn move-ns
-  "ALPHA: subject to change. Moves the .clj or .cljc source file (found relative
-  to source-path) for the namespace named old-sym to new-sym and
-  replace all occurrences of the old name with the new name in all
-  Clojure source files found in dirs.
-
-  This is partly textual transformation. It works on
-  namespaces require'd or use'd from a prefix list.
+  "ALPHA: subject to change. Moves the source file (of the given `extension`,
+  relative to `source-path`) for namespace `old-sym` to `new-sym`, then replaces
+  all references to the old name with the new name across every Clojure source
+  file under `dirs`. The single-rename combination of `move-ns-files!` and
+  `replace-ns-symbol-in-source-files`.
 
   WARNING: This function modifies and deletes your source files! Make
   sure you have a backup or version control."

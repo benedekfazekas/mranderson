@@ -1,8 +1,16 @@
 (ns mranderson.dependency.tree
+  "Walking and ordering of dependency trees.
+
+  A dependency tree here is a nested map of `[name version] -> subtree`. This
+  namespace provides depth-first walks for both modes (`walk-dep-tree` for
+  unresolved, `walk-ordered-deps` for resolved), tree expansion
+  (`walk&expand-deps`), subtree eviction, and topological ordering."
   (:require [clojure.tools.namespace.dependency :as dep]))
 
 ;; inlined from leiningen source
 (defn walk-deps
+  "Depth-first walk of a dependency tree, calling `(f dep level)` for each node
+  (root level defaults to 0). Side-effecting; ignores `f`'s return value."
   ([deps f level]
      (doseq [[dep subdeps] deps]
        (f dep level)
@@ -11,7 +19,11 @@
   ([deps f]
    (walk-deps deps f 0)))
 
-(defn path-pred [path dep k]
+(defn path-pred
+  "True when appending `dep`'s name to `path` equals `k`, i.e. `dep` sits at path
+  `k` in the tree. Used to match overrides/expositions to a node by its full
+  path."
+  [path dep k]
   (= k (conj path (first dep))))
 
 (defn walk&expand-deps
@@ -47,7 +59,7 @@
   "Evict subtrees from a dependency tree.
 
   `subtree-roots` are defined as a set of dependency names (for example `#{'org.clojure/clojure 'org.clojure/clojurescript}`
-  without their versions. Tested on a resolved tree. Assumed that it would evict all subtrees from an unresolved depedency
+  without their versions. Tested on a resolved tree. Assumed that it would evict all subtrees from an unresolved dependency
   tree."
   [deps subtree-roots]
   (->> (map
@@ -58,11 +70,13 @@
        (into {})))
 
 (defn walk-dep-tree
-  "Walks a dependency tree in depth first order.
+  "Depth-first walk of a dependency tree (used by unresolved-tree mode),
+  side-effecting.
 
-  Applies `pre-fn` on node before going down a level. `pre-fn` calculates and returns its own context and paths,
-  these are passed down to the next level. After the subtree is processed `post-fn` gets applied using the context,
-  paths returned by `pre-fn` for the same node."
+  For each node calls `(pre-fn ctx paths dep)`, which must return
+  `[pre-result new-paths]`; `new-paths` is threaded down into the subtree. After
+  the subtree is processed, calls `(post-fn ctx pre-result paths)` with this
+  node's original `paths`. Return values are discarded."
   [deps pre-fn post-fn paths ctx]
   (doseq [[dep subdeps] deps]
     (let [[pre-result new-paths] (pre-fn ctx paths dep)]
@@ -71,11 +85,15 @@
       (post-fn ctx pre-result paths))))
 
 (defn walk-ordered-deps
-  "Walks a flat list of dependencies.
+  "Walks a flat, topologically ordered map of dependencies (used by
+  resolved-tree mode).
 
-  Applies `pre-fn` on all the dependencies and collects the `pre-fn` returned contextual values and paths.
-  Runs `post-fn` on all the dependencies in a reverse order using the `pre-fn` results and paths, and
-  returns a vector of the `post-fn` results in that order."
+  First calls `(pre-fn ctx paths dep)` for every dep, collecting their results.
+  Then calls `post-fn` for each dep in reverse order, threading into `paths` the
+  `:parent-clj-dirs` accumulated across all the pre-results, and returns a vector
+  of the `post-fn` results in that (reversed) order. Unlike `walk-dep-tree`, this
+  returns its `post-fn` results rather than discarding them - resolved mode
+  applies the collected renames in one global pass."
   [deps pre-fn post-fn paths ctx]
   (->> (keys deps)
        (map (partial pre-fn ctx paths))
@@ -84,6 +102,9 @@
           (mapv (fn [[pre-result _]] (post-fn ctx pre-result (update paths :parent-clj-dirs concat clj-dirs))) deps)))))
 
 (defn- create-dep-graph
+  "Builds a `clojure.tools.namespace.dependency` graph from a nested dep tree,
+  declaring each child a dependency of its parent. Top-level nodes are made to
+  depend on nil so isolated roots still appear in the topological sort."
   ([graph deps level]
    (reduce
     (fn [graph [dep subdeps]]
@@ -97,5 +118,8 @@
   ([deps]
    (create-dep-graph (dep/graph) deps 0)))
 
-(defn topological-order [dep-tree]
+(defn topological-order
+  "Returns a map of each dependency in `dep-tree` to its position (an integer) in
+  topological order. Used to order the resolved tree before walking it."
+  [dep-tree]
   (zipmap (dep/topo-sort (create-dep-graph dep-tree)) (range)))
