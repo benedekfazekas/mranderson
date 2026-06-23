@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+- [#33](https://github.com/benedekfazekas/mranderson/issues/33) Split a mixed `(:import ...)` correctly when a deftype class and a repackaged Java class share a package (e.g. claypoole): the Java class now points at its jarjar package even though the namespace move has already prefixed the shared package
 - [#97](https://github.com/benedekfazekas/mranderson/issues/97) Prefix repackaged Java classes referenced in a namespace body even when the file has no `(:import ...)` form (previously such references were left bare and threw `ClassNotFoundException` at runtime)
 
 ### Changes

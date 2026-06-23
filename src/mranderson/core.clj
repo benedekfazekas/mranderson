@@ -167,33 +167,51 @@
           s
           tokens))
 
+(defn- repackaged-java-package
+  "If `class` imported under `pkg` is one of the repackaged java classes
+  (`class-names`, the original fully-qualified `.class` names), returns that
+  class's original java package; otherwise nil.
+
+  The package is matched as a suffix of `pkg`, not exactly: when a java class
+  shares a package with a Clojure namespace (e.g. claypoole's
+  `com.climate.claypoole.impl`), the namespace move has already prefixed `pkg`
+  by the time imports are rewritten, so the bare java package only appears at
+  the end of `pkg`. See #33."
+  [pkg class class-names]
+  (some (fn [fqn]
+          (when (str/ends-with? fqn (str "." class))
+            (let [jpkg (subs fqn 0 (- (count fqn) (count class) 1))]
+              (when (or (= pkg jpkg) (str/ends-with? pkg (str "." jpkg)))
+                jpkg))))
+        class-names))
+
 (defn- rewrite-import-spec
   "Rewrites a single `(:import …)` spec class-exactly, returning a seq of specs.
 
-  A prefix-list `[pkg C1 C2 …]` is split so only the classes actually in
-  `class-names` get the `prefix`-ed package, leaving the rest under the original
-  package. This both avoids prefixing classes that merely share a package with a
-  repackaged one (#52) and keeps deftype-generated classes - which are prefixed
-  separately by the namespace move - in their original group (#33). A
-  fully-qualified class symbol is prefixed iff it is in `class-names`."
+  A prefix-list `[pkg C1 C2 …]` is split so the repackaged java classes move to
+  their jarjar package (`prefix` + the original java package) while the rest stay
+  under `pkg`. This avoids prefixing classes that merely share a package with a
+  repackaged one (#52) and keeps deftype-generated classes - prefixed separately
+  by the namespace move - under the (namespace-prefixed) package they already
+  have (#33). A fully-qualified class symbol is handled the same way."
   [spec class-names prefix]
   (cond
     (vector? spec)
-    (let [pkg     (first spec)
+    (let [pkg     (str (first spec))
           classes (rest spec)]
       (if (empty? classes)
         [spec]
-        (let [grouped (group-by #(contains? class-names (str pkg "." %)) classes)
-              members (seq (get grouped true))
-              others  (seq (get grouped false))]
+        (let [grouped (group-by #(repackaged-java-package pkg (str %) class-names) classes)
+              others  (seq (get grouped nil))]
           (cond-> []
-            others  (conj (into [pkg] others))
-            members (conj (into [(symbol (str prefix "." pkg))] members))))))
+            others (conj (into [(first spec)] others))
+            true   (into (for [[jpkg cls] (dissoc grouped nil)]
+                           (into [(symbol (str prefix "." jpkg))] cls)))))))
 
     (symbol? spec)
-    [(if (contains? class-names (str spec))
-       (symbol (str prefix "." spec))
-       spec)]
+    (let [s    (str spec)
+          jfqn (some #(when (or (= s %) (str/ends-with? s (str "." %))) %) class-names)]
+      [(if jfqn (symbol (str prefix "." jfqn)) spec)])
 
     :else
     [spec]))
