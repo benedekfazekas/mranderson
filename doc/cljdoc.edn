@@ -1,0 +1,7 @@
+{:cljdoc.doc/tree
+ [["Readme" {:file "README.md"}]
+  ["Why MrAnderson exists" {:file "doc/rationale.md"}]
+  ["How MrAnderson works" {:file "doc/design.md"}]
+  ["Glossary" {:file "doc/glossary.md"}]
+  ["Contributing" {:file "CONTRIBUTING.md"}]
+  ["Changelog" {:file "CHANGELOG.md"}]]}
