@@ -424,3 +424,30 @@
         (testing "returns the surviving files (correctly-placed dup + the unique one)"
           (is (= #{"riddley/compiler.clj" "other.clj"} kept))))
       (finally (fs/delete-dir dir)))))
+
+(deftest t-mixed-deftype-java-import-is-split
+  ;; #33: claypoole's main namespace imports both PriorityThreadpool (a deftype,
+  ;; which moves with its namespace) and PriorityThreadpoolImpl (a real java
+  ;; class, repackaged by jarjar) from a single package. They need different
+  ;; prefixes, so the import must be split - and the split has to survive the
+  ;; namespace move having already prefixed the shared package.
+  (with-mranderson
+    [project {:dependencies '[^:inline-dep [com.climate/claypoole "1.1.4"]]
+              :files         []
+              :opts          {:unresolved-tree false}}]
+    (let [{:keys [working-directory prefix]} project
+          name-version (util/clean-name-version "mranderson-test" "0.1.0-SNAPSHOT")
+          content      (slurp (io/file working-directory prefix
+                                       "claypoole" "v1v1v4" "com" "climate" "claypoole.clj"))]
+      (testing "the java class is imported from its jarjar-repackaged package"
+        (is (string/includes?
+             content
+             (str "[" name-version ".com.climate.claypoole.impl PriorityThreadpoolImpl]"))))
+      (testing "the deftype class stays under the namespace-moved package"
+        (is (string/includes?
+             content
+             (str "[" prefix ".claypoole.v1v1v4.com.climate.claypoole.impl PriorityThreadpool]"))))
+      (testing "the java class is not left under the namespace prefix (the #33 bug)"
+        (is (not (string/includes?
+                  content
+                  (str prefix ".claypoole.v1v1v4.com.climate.claypoole.impl PriorityThreadpoolImpl"))))))))
