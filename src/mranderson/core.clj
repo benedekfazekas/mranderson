@@ -1,4 +1,10 @@
 (ns mranderson.core
+  "Orchestrates the dependency-inlining pipeline: resolve dependencies, unzip
+  each artifact under `target/srcdeps`, move and rewrite the namespaces (via
+  `mranderson.move`), and repackage any bundled Java `.class` files through
+  jarjar. `inline-deps` is the Leiningen-free entry point; `mranderson` is the
+  lower-level workhorse it and the Leiningen task both call into. See
+  doc/design.md for the architecture."
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
@@ -23,7 +29,9 @@
     (fs/file target-dir entry-path)))
 
 (defn- unzip
-  "Takes the path to a zipfile source and unzips it to target-dir."
+  "Unzips the jar/zip at `source` into `target-dir` (defaults to `(name
+  source)`), skipping `META-INF` and `clj-kondo.exports` entries. Returns the
+  seq of unzipped Clojure source entry names (`.clj`/`.cljc`/`.cljs`)."
   ([source]
    (unzip source (name source)))
   ([source target-dir]
@@ -47,7 +55,12 @@
            (conj! clj-files entry-name)))
        (persistent! clj-files)))))
 
-(defn- replacement-prefix [pprefix src-path art-name art-version underscorize?]
+(defn- replacement-prefix
+  "Builds the dotted namespace prefix an artifact's namespaces move under:
+  `pprefix`, then the portion of `src-path` below the prefix dir, then
+  `art-name` and `art-version`. When `underscorize?` is falsey, underscores are
+  turned back into dashes (namespace form rather than file-path form)."
+  [pprefix src-path art-name art-version underscorize?]
   (let [path (->> (str/split (str src-path) #"/")
                   (drop-while #(not= (-> (u/sym->file-name pprefix)
                                          (str/split #"/")
@@ -60,7 +73,10 @@
          (concat path)
          (str/join "."))))
 
-(defn- replacement [prefix postfix underscorize?]
+(defn- replacement
+  "Joins `prefix` and `postfix` into a new namespace symbol. When `underscorize?`
+  is truthy, dashes in `postfix` become underscores."
+  [prefix postfix underscorize?]
   (->> (if underscorize?
          (-> postfix
              str
@@ -85,7 +101,11 @@
   [srcdeps]
   (into #{} (map (partial u/class-file->fully-qualified-name srcdeps)) (u/class-files srcdeps)))
 
-(defn- import-fragment-left [^String clj-source]
+(defn- import-fragment-left
+  "Returns the suffix of `clj-source` starting at the `(` that opens the
+  `(:import ...)` form, or nil if there is no `:import`. The left edge from which
+  `import-fragment` slices out the whole import form."
+  [^String clj-source]
   (let [index-of-import (.indexOf clj-source ":import")]
     (when (> index-of-import -1)
       (drop (loop [ns-decl-fragment (reverse (take index-of-import clj-source))
@@ -98,7 +118,10 @@
 
                     :else (recur (rest ns-decl-fragment) (inc index-of-open-bracket)))) clj-source))))
 
-(defn- import-fragment [clj-source]
+(defn- import-fragment
+  "Extracts the full `(:import ...)` form from `clj-source` as a string by
+  balancing parentheses, or nil if there is none."
+  [clj-source]
   (let [import-fragment-left (import-fragment-left clj-source)
         frag-count (count import-fragment-left)]
     (when (and import-fragment-left (> frag-count 0))
@@ -155,7 +178,10 @@
         (and (.isDirectory f) (empty? (.listFiles f)))
         (.delete f)))))
 
-(defn- replace-class-deps! [srcdeps jar-file]
+(defn- replace-class-deps!
+  "Deletes the original `.class` files under `srcdeps` and unzips the
+  jarjar-repackaged `jar-file` in their place."
+  [srcdeps jar-file]
   (log/info "deleting class files in" (str srcdeps) "...")
   (doseq [class-dir (u/java-class-dirs srcdeps)]
     (delete-class-files! (fs/file srcdeps class-dir))
@@ -266,13 +292,12 @@
     (boolean (some #(str/includes? rel (str (u/sym->file-name %) "/")) prefix-exclusions))))
 
 (defn- prefix-java-imports!
-  "Rewrites Java `:import`s of repackaged classes across every inlined source
-  file under `srcdeps` - both the dependencies and the consuming project. The
-  per-dependency pass misses top-level dependency namespaces (#54) and the
-  project's own files (#92); this final pass, run once all the dependency class
-  files are unpacked (so the full set of repackaged classes is known), covers
-  them. It is idempotent: `rewrite-java-imports` won't re-prefix an import that
-  was already rewritten by the per-dependency pass."
+  "Rewrites Java `:import`s (and fully-qualified body references) of repackaged
+  classes across every inlined source file under `srcdeps` - both the
+  dependencies and the consuming project (#54, #92). The single Java-import pass,
+  run after the namespaces have moved but while the class files are still in
+  their original (unprefixed) locations, so their fully-qualified names are
+  known. Files under `prefix-exclusions` are skipped."
   [pname pversion srcdeps prefix-exclusions]
   (let [cleaned-name-version (u/clean-name-version pname pversion)
         class-names          (map (partial u/class-file->fully-qualified-name srcdeps) (u/class-files srcdeps))]
@@ -377,7 +402,13 @@
   [clj-files]
   (sort-by #(str/replace % ".cljc" ".cljx") clj-files))
 
-(defn- unzip-artifact! [{:keys [srcdeps]} {:keys [src-path branch]} dep]
+(defn- unzip-artifact!
+  "Unzips a single artifact's jar into `srcdeps` and returns a tuple of its
+  artifact info (cleaned name, version, clj files and dirs, dep) and the child
+  context (`src-path`, `branch`, `parent-clj-dirs`) the tree walk threads into
+  this artifact's own dependencies. The pre-fn half of the walk callback pair,
+  with `update-artifact!` as the post-fn."
+  [{:keys [srcdeps]} {:keys [src-path branch]} dep]
   (let [art-name         (-> dep first name (str/split #"/") last)
         art-name-cleaned (str/replace art-name #"[\.-_]" "")
         art-version      (str "v" (-> dep second (str/replace "." "v")))
@@ -398,6 +429,9 @@
       :parent-clj-dirs (map fs/file clj-dirs)}]))
 
 (defn copy-source-files
+  "Copies each of `source-paths` into `<target-path>/<target-suffix>`
+  (`target-suffix` defaults to `\"srcdeps\"`). Stages the project's own sources
+  alongside the inlined deps so their references can be rewritten too."
   ([source-paths target-path]
    (copy-source-files source-paths target-path "srcdeps"))
 
@@ -417,10 +451,10 @@
 (defn- mranderson-resolved-deps!
   "Unzips and transforms files in a resolved dependency tree.
 
-  Creates a topological order based on the expanded tree. Flattens out the resolved tree into a list like data structure
-  ordered by the expanded tree based topological order. Processes this ordered list with `walk-ordered-deps` that first
-  unzips all deps and collects their contextual info and then performs the source transformation in
-  reverse topological order."
+  Flattens the resolved tree into a topologically ordered list (the ordering is
+  vestigial now - see doc/design.md), unzips every artifact and moves its
+  namespaces via `walk-ordered-deps`, then applies all the collected renames in a
+  single global pass so each source file is parsed only once."
   [resolved-deps unresolved-deps paths ctx]
   (let [unresolved-deps-topo-order (t/topological-order unresolved-deps)
         topo-comparator            (fn [[l] [r]]
@@ -453,7 +487,7 @@
   - prefix-exclusions: prefixes to exclude when prefixing imports for java classes
   - unresolved-tree: switch to unresolved tree mode if true
   - overrides: overrides in the unresolved tree in unresolved tree mode
-  - expositions: transient dependencies made available for the project source files in unresolved tree mode
+  - expositions: transitive dependencies made available for the project source files in unresolved tree mode
   - watermark: meta flag to mark inlined dependencies"
 
   [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides srcdeps prefix-exclusions] :as ctx} paths]
@@ -467,8 +501,8 @@
       (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
     (when-not (or skip-repackage-java-classes (empty? (u/class-files srcdeps)))
       (let [jar-file (fs/file (fs/parent srcdeps) "class-deps.jar")]
-        ;; rewrite imports the per-dependency pass missed (top-level deps, the
-        ;; project's own files) while the class files are still in their original
+        ;; rewrite java imports across all inlined sources (deps + the project's
+        ;; own files) while the class files are still in their original
         ;; (unprefixed) locations, so their names are known
         (prefix-java-imports! pname pversion srcdeps prefix-exclusions)
         (class-deps-jar! srcdeps jar-file)

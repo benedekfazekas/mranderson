@@ -1,7 +1,7 @@
 (ns ^:no-doc mranderson.log
   "Here we replicate lein logging.
   This gives us what a lein plugin user would expect and is also reasonable for non-lein use.
-  We don't use's lein's logging methods because we don't want to tie ourselves to lein just for logging.
+  We don't use lein's logging methods because we don't want to tie ourselves to lein just for logging.
   We also add in multi-threading support which lein logging does not do.")
 
 ;; lein-isms for controlling logging

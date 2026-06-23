@@ -1,4 +1,7 @@
 (ns leiningen.inline-deps
+  "The `lein inline-deps` task: reads MrAnderson options off the CLI and the
+  project map and calls into `mranderson.core`. Just a Leiningen wrapper; the
+  engine runs fine without it via `mranderson.core/inline-deps`."
   (:require [clojure.edn :as edn]
             [me.raynes.fs :as fs]
             [mranderson.core :as c]
@@ -7,6 +10,10 @@
   (:import [java.util UUID]))
 
 (defn- lookup-opt
+  "Resolves option `opt-key` with precedence: CLI args > project `:mranderson`
+  map > `not-found`. `cli-opts` is the parsed CLI arg sequence (`:key val ...`);
+  the value is the element following `opt-key`. `project-opts` is the project
+  map's `:mranderson` section."
   ([opt-key cli-opts project-opts]
    (lookup-opt opt-key cli-opts project-opts nil))
 
@@ -33,6 +40,13 @@
     (log/warn "WARNING: `:aot` is set in this project. Inlining AOT-compiled namespaces is known to produce broken prefixes (see https://github.com/benedekfazekas/mranderson/issues/89). Consider disabling `:aot` while inlining dependencies.")))
 
 (defn- lein-project->ctx
+  "Builds the engine `ctx` map from a Leiningen `project` and the raw CLI `args`.
+  Parses `args` as EDN, resolves each option via `lookup-opt` (CLI > project
+  `:mranderson` > default), and maps Leiningen-facing names onto the engine's:
+  e.g. `:project-prefix` -> `:pprefix` (defaulting to a random prefix) and
+  `:skip-javaclass-repackage` -> `:skip-repackage-java-classes`. Also derives the
+  `target-path`-relative `srcdeps` directory. See `mranderson.core/mranderson`
+  for the `ctx` keys."
   [{:keys [root target-path name version mranderson]} args]
   (let [cli-opts                    (map edn/read-string args)
         project-prefix              (some-> (lookup-opt :project-prefix cli-opts mranderson
@@ -65,12 +79,18 @@
 (defn inline-deps
   "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.
 
+  Options may be given on the command line (`:key val`) or under `:mranderson`
+  in the project map; the command line wins.
+
   Available options:
 
-  :project-prefix           string    Project prefix to use when shadowing
+  :project-prefix           string    Project prefix to use when shadowing (default: mranderson{rnd})
   :skip-javaclass-repackage boolean   If true Jar Jar Links won't be used to repackage java classes
   :prefix-exclusions        list      List of prefixes that should not be processed in imports
-  :unresolved-tree          boolean   Enforces unresolved tree mode"
+  :unresolved-tree          boolean   Enforces unresolved tree mode
+  :overrides                map       Dependency overrides, unresolved-tree mode only
+  :expositions              list      Transitive deps exposed to the project's own sources, unresolved-tree mode only
+  :watermark                keyword   Metadata key added to inlined namespaces (default: :mranderson/inlined; nil to disable)"
   [{:keys [repositories dependencies target-path] :as project} & args]
   (warn-on-aot project)
   (c/copy-source-files (u/determine-source-dirs project) target-path)
