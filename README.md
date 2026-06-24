@@ -309,10 +309,11 @@ A friendly Leiningen wrapper around MrAnderson lives at [lein-isolate](https://g
 - Some ideas around namespace renaming/moving were borrowed from @expez, my co-maintainer for [refactor-nrepl](https://github.com/clojure-emacs/refactor-nrepl), in their fabulous work on the `rename-file-or-dir` feature.
 - @cichli did a round of profiling and performance/parallelisation fixes on mranderson which I took inspiration from
 - Had amazing feedback, conversations around MrAnderson and dependencies with @bbatsov (MrAnderson's main client), @reborg, @SevereOverfl0w, @andrewmcveigh. Really grateful for the community and these nice people in particular.
+- Shout out for the contributors specifically @bbatsov -- finalising 0.6.0 and taking care of 0.6.1, @lread, @vemv
 
 ## License
 
-Copyright © 2014-2022 Benedek Fazekas
+Copyright © 2014-2026 Benedek Fazekas & contributors
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
