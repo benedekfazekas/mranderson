@@ -1,4 +1,4 @@
-(def project-version "0.6.1-SNAPSHOT")
+(def project-version "0.6.1")
 
 (defproject thomasa/mranderson project-version
   :description "Dependency inlining and shadowing tool."

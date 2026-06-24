@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.1
+
 ### Bug fixes
 
 - Only add a namespace to `:aot` (Leiningen plugin) when its `ns` form actually has a `:gen-class` clause, not when `:gen-class` merely appears as text in a docstring or comment
