@@ -70,7 +70,8 @@
      :overrides                   (lookup-opt :overrides cli-opts mranderson)
      :expositions                 (lookup-opt :expositions cli-opts mranderson)
      :watermark                   (lookup-opt :watermark cli-opts mranderson :mranderson/inlined)
-     :print-deps-tree             (lookup-opt :print-deps-tree cli-opts mranderson)}))
+     :print-deps-tree             (lookup-opt :print-deps-tree cli-opts mranderson)
+     :report                      (lookup-opt :report cli-opts mranderson)}))
 
 (defn- initial-paths [target-path pprefix]
   {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
@@ -92,7 +93,8 @@
   :overrides                map       Dependency overrides, unresolved-tree mode only
   :expositions              list      Transitive deps exposed to the project's own sources, unresolved-tree mode only
   :watermark                keyword   Metadata key added to inlined namespaces (default: :mranderson/inlined; nil to disable)
-  :print-deps-tree          boolean   Print the dependency tree that would be inlined, then exit without inlining"
+  :print-deps-tree          boolean   Print the dependency tree that would be inlined, then exit without inlining
+  :report                   boolean   After inlining, print a per-file report of which namespaces' references were rewritten (resolved-tree mode only)"
   [{:keys [repositories dependencies target-path] :as project} & args]
   (let [{:keys [pprefix print-deps-tree] :as ctx} (lein-project->ctx project args)]
     (if print-deps-tree

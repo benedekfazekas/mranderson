@@ -273,6 +273,7 @@ below; see its docstring for the authoritative list.
 | expositions              | empty list                     |  Makes transitive dependencies available in the project's source files in **unresolved tree** mode | `:mranderson {:expositions [[mvxcvi/puget fipp]]}` |
 | included-source-paths    | nil                            |  (Leiningen task only.) Determines which of the provided `:source-paths` (not `:test-paths`!) will be inlined. If `nil` or `:first`, the first source path (typically `"src"`) will be the only one to be processed. If set to `:source-paths`, all `:source-paths` will be processed. If set to a vector, that vector will be interpreted as the list of source dirs to be processed, as-is, ignoring the project's `:source-paths` value. |
 | print-deps-tree          | false                          |  Print the dependency tree that would be inlined (the resolved tree, or the unresolved one in **unresolved tree** mode) and exit without inlining anything. | `lein inline-deps :print-deps-tree true` |
+| report                   | false                          |  After inlining, print a per-file report of which namespaces' references were rewritten in each file, with reference counts. **Resolved tree** mode only. | `lein inline-deps :report true` |
 
 ## Prerequisites
 

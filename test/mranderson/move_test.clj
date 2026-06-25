@@ -436,6 +436,21 @@
         (t/is (str/includes? out "#_[a.b Thing]"))
         (t/is (str/includes? out "[x.y Live]"))))))
 
+(def ^:private file-rename-counts #'sut/file-rename-counts)
+
+(t/deftest file-rename-counts-test
+  ;; #43: the run report counts references per rename, mirroring the real
+  ;; rewrite's dispatch.
+  (t/testing "counts refs per rename, longest namespace prefix winning"
+    (let [renames [{:old-sym 'a.b :new-sym 'x.y} {:old-sym 'a.b.c :new-sym 'x.y.c}]
+          content "(ns foo (:require [a.b :as b] [a.b.c :as c]))\n(a.b/go) (a.b/go) (a.b.c/stop)"]
+      (t/is (= {'a.b 3 'a.b.c 2} (file-rename-counts content renames #{})))))
+  (t/testing "a repackaged java class is skipped (left for the import pass), like the rewrite"
+    (let [renames [{:old-sym 'com.acme.impl :new-sym 'pre.com.acme.impl}]
+          content "(com.acme.impl.Widget. 1) com.acme.impl/foo"]
+      (t/is (= {'com.acme.impl 1} (file-rename-counts content renames #{"com.acme.impl.Widget"})))
+      (t/is (= {'com.acme.impl 2} (file-rename-counts content renames #{}))))))
+
 (t/deftest replace-ns-symbols-handles-already-inlined-sources
   ;; #39: MrAnderson can inline a library that was itself built by inlining its
   ;; deps (so it ships watermarked, already-prefixed namespaces). The watermark

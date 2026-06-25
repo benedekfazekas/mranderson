@@ -501,6 +501,54 @@
   (when (and (#{".clj" ".cljs"} extension) (.exists (sym->file source-path old-sym ".cljc")))
     (move-ns-file old-sym new-sym ".cljc" source-path)))
 
+(defn- file-rename-counts
+  "Counts, per rename, how many references in `content` the batch rewrite changes,
+  for run reporting. Mirrors `source-replacement-multi`'s dispatch (a repackaged
+  Java class is skipped; the longest-namespace prefix wins), so the tally matches
+  what the actual rewrite does. Returns `{old-sym ref-count}` for renames that
+  changed at least one reference."
+  [content renames java-classes]
+  (let [renames    (sort-by #(- (count (name (:old-sym %)))) renames)
+        by-segment (reduce (fn [m rename]
+                             (reduce #(update %1 %2 (fnil conj []) rename)
+                                     m (ns-first-segments (:old-sym rename))))
+                           {} renames)
+        regex      (re-pattern (str (->> renames
+                                         (map #(java.util.regex.Pattern/quote (load-param (:old-sym %))))
+                                         (str/join "|"))
+                                    "|"
+                                    (.pattern ^java.util.regex.Pattern symbol-regex)))]
+    (reduce (fn [counts match]
+              (let [candidates (get by-segment (token-first-segment match))]
+                (if (or (empty? candidates)
+                        (contains? java-classes (-> match (str/replace #"^[\"^]+" "") (str/replace #"\.$" ""))))
+                  counts
+                  (if-let [matched (some (fn [{:keys [old-sym new-sym] :as rename}]
+                                           (when (not= match (source-replacement old-sym new-sym match))
+                                             rename))
+                                         candidates)]
+                    (update counts (:old-sym matched) (fnil inc 0))
+                    counts))))
+            {}
+            (re-seq regex content))))
+
+(defn- rewrite-file!
+  "Applies the `applicable` renames to `file` in place (write skipped when nothing
+  changes). Returns nil when unchanged, otherwise a report map `{:file ...
+  :renames [{:old-sym :new-sym :refs n} ...]}` of the references rewritten."
+  [^File file applicable file-ext java-classes]
+  (let [old (slurp file)
+        new (str (replace-ns-symbols old applicable file-ext java-classes))]
+    (when (not= old new)
+      (spit file new)
+      (let [by-old (into {} (map (juxt :old-sym identity)) applicable)]
+        {:file    file
+         :renames (->> (file-rename-counts old applicable java-classes)
+                       (map (fn [[old-sym refs]]
+                              {:old-sym old-sym :new-sym (:new-sym (by-old old-sym)) :refs refs}))
+                       (sort-by (comp str :old-sym))
+                       vec)}))))
+
 (defn replace-ns-symbols-in-source-files
   "Applies a batch of namespace renames to every Clojure source file under
   `dirs`, reading and writing each file at most once (in parallel, per file).
@@ -512,7 +560,10 @@
   re-scanning the directories and re-reading every file once per rename.
 
   `java-classes` (optional) are fully-qualified repackaged Java class names that
-  the rewrite must leave untouched (they are prefixed by the java-import pass)."
+  the rewrite must leave untouched (they are prefixed by the java-import pass).
+
+  Returns a seq of per-file report maps for the files that changed (see
+  `rewrite-file!`), used by the run report (#43)."
   ([renames dirs]
    (replace-ns-symbols-in-source-files renames dirs #{}))
   ([renames dirs java-classes]
@@ -527,8 +578,9 @@
                      ;; this file (the per-rename behaviour of `update?`)
                      applicable (filterv #(update? (str file) (:extension %)) renames)]
                  (when (seq applicable)
-                   (update-file file (fn [content] (replace-ns-symbols content applicable file-ext java-classes)))))))
-            (doall))))))
+                   (rewrite-file! file applicable file-ext java-classes)))))
+            (doall)
+            (remove nil?))))))
 
 (defn replace-ns-symbol-in-source-files
   "Replaces all occurrences of `old-sym` with `new-sym` in every Clojure source

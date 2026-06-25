@@ -492,3 +492,25 @@
         (let [out (with-out-str
                     (sut/print-deps-tree [] '[^:inline-dep [top "1"]] {:unresolved-tree true}))]
           (is (string/includes? out "  [nested \"2\"]")))))))
+
+;; ## #43 - run report
+
+(def ^:private print-run-report #'sut/print-run-report)
+
+(deftest t-print-run-report
+  (testing "lists each changed file with its renames and ref counts, relative to srcdeps"
+    (let [reports [{:file (io/file "/tmp/sd/myapp/core.clj")
+                    :renames [{:old-sym 'a.b :new-sym 'pre.a.b :refs 3}]}
+                   {:file (io/file "/tmp/sd/pre/a/b.clj")
+                    :renames [{:old-sym 'a.b :new-sym 'pre.a.b :refs 1}
+                              {:old-sym 'c.d :new-sym 'pre.c.d :refs 2}]}]
+          out     (with-out-str
+                    (print-run-report reports {:srcdeps "/tmp/sd" :pprefix "pre" :unresolved-tree false}))]
+      (is (string/includes? out "Inlined 2 file(s) under pre:"))
+      (is (string/includes? out "myapp/core.clj: a.b -> pre.a.b (3 refs)"))
+      (is (string/includes? out "pre/a/b.clj: c.d -> pre.c.d (2 refs)"))
+      (testing "singular ref wording"
+        (is (string/includes? out "pre/a/b.clj: a.b -> pre.a.b (1 ref)")))))
+  (testing "unresolved-tree mode reports that the run report is unavailable"
+    (let [out (with-out-str (print-run-report nil {:unresolved-tree true}))]
+      (is (string/includes? out "only available in resolved-tree mode")))))

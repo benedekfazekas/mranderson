@@ -9,6 +9,7 @@
 ### New features
 
 - [#24](https://github.com/benedekfazekas/mranderson/issues/24): Add a `:print-deps-tree` option (and `mranderson.core/print-deps-tree`) that prints the dependency tree inlining would process and exits without inlining: `lein inline-deps :print-deps-tree true`
+- [#43](https://github.com/benedekfazekas/mranderson/issues/43): Add a `:report` option that, after inlining, prints a per-file summary of which namespaces' references were rewritten in each file and how many: `lein inline-deps :report true` (resolved-tree mode only)
 
 ### Changes
 
