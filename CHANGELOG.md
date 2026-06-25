@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- [#82](https://github.com/benedekfazekas/mranderson/issues/82) Leave reader-discarded (`#_`) forms in the `ns` macro untouched during a rename. A symbol buried inside a discarded `:require`/`:import` (e.g. `#_[a.b :as c]`) was previously rewritten, since the guards only skipped the discard node itself, not its contents
+
 ### Changes
 
 - [#65](https://github.com/benedekfazekas/mranderson/issues/65) Mark internal namespaces (`mranderson.util`, `mranderson.move`, `mranderson.dependency.*`) `:no-doc` so cljdoc documents only the public API (`mranderson.core`, `mranderson.plugin`, `leiningen.inline-deps`)
+- [#82](https://github.com/benedekfazekas/mranderson/issues/82) Centralize reader-discard handling in a new internal `mranderson.zloc` namespace that wraps rewrite-clj navigation, instead of scattering `:uneval` checks through `mranderson.move`
 
 ## 0.6.1
 
