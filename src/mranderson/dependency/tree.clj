@@ -1,4 +1,4 @@
-(ns mranderson.dependency.tree
+(ns ^:no-doc mranderson.dependency.tree
   "Walking and ordering of dependency trees.
 
   A dependency tree here is a nested map of `[name version] -> subtree`. This

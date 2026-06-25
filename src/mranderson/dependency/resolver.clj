@@ -1,4 +1,4 @@
-(ns mranderson.dependency.resolver
+(ns ^:no-doc mranderson.dependency.resolver
   "Dependency resolution via pomegranate/aether.
 
   `resolve-source-deps` produces the resolved tree (Maven conflict resolution has

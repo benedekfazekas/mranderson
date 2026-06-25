@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changes
+
+- [#65](https://github.com/benedekfazekas/mranderson/issues/65) Mark internal namespaces (`mranderson.util`, `mranderson.move`, `mranderson.dependency.*`) `:no-doc` so cljdoc documents only the public API (`mranderson.core`, `mranderson.plugin`, `leiningen.inline-deps`)
+
 ## 0.6.1
 
 ### Bug fixes
