@@ -474,6 +474,22 @@
                        (apply concat))]
       (move/replace-ns-symbols-in-source-files renames [(:srcdeps ctx)] (java-class-fqns (:srcdeps ctx))))))
 
+(defn- print-run-report
+  "Prints a human-readable summary of the run: each changed file and the
+  namespaces whose references were rewritten in it, with reference counts.
+  Resolved-tree mode only - unresolved-tree mode rewrites per subtree and does
+  not collect a report."
+  [reports {:keys [srcdeps pprefix unresolved-tree]}]
+  (if unresolved-tree
+    (log/info "run report is only available in resolved-tree mode")
+    (let [reports (sort-by #(str (:file %)) reports)]
+      (log/info (format "Inlined %d file(s) under %s:" (count reports) pprefix))
+      (doseq [{:keys [file renames]}        reports
+              {:keys [old-sym new-sym refs]} renames]
+        (log/info (format "  %s: %s -> %s (%d ref%s)"
+                          (u/srcdeps-relative srcdeps file)
+                          old-sym new-sym refs (if (= 1 refs) "" "s")))))))
+
 (defn mranderson
   "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.
 
@@ -488,26 +504,29 @@
   - unresolved-tree: switch to unresolved tree mode if true
   - overrides: overrides in the unresolved tree in unresolved tree mode
   - expositions: transitive dependencies made available for the project source files in unresolved tree mode
-  - watermark: meta flag to mark inlined dependencies"
+  - watermark: meta flag to mark inlined dependencies
+  - report: print a per-file run report when true (resolved-tree mode only)"
 
-  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides srcdeps prefix-exclusions] :as ctx} paths]
+  [repositories dependencies {:keys [skip-repackage-java-classes unresolved-tree pname pversion overrides srcdeps prefix-exclusions report] :as ctx} paths]
   (let [source-dependencies         (filter u/source-dep? dependencies)
         resolved-deps-tree          (dr/resolve-source-deps repositories source-dependencies)
         overrides                   (or (and unresolved-tree overrides) {})
         unresolved-deps-tree        (dr/expand-dep-hierarchy repositories resolved-deps-tree overrides)]
     (log/info "retrieve dependencies and munge clojure source files")
-    (if unresolved-tree
-      (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
-      (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))
-    (when-not (or skip-repackage-java-classes (empty? (u/class-files srcdeps)))
-      (let [jar-file (fs/file (fs/parent srcdeps) "class-deps.jar")]
-        ;; rewrite java imports across all inlined sources (deps + the project's
-        ;; own files) while the class files are still in their original
-        ;; (unprefixed) locations, so their names are known
-        (prefix-java-imports! pname pversion srcdeps prefix-exclusions)
-        (class-deps-jar! srcdeps jar-file)
-        (u/apply-jarjar! pname pversion srcdeps jar-file)
-        (replace-class-deps! srcdeps jar-file)))))
+    (let [reports (if unresolved-tree
+                    (mranderson-unresolved-deps! unresolved-deps-tree paths ctx)
+                    (mranderson-resolved-deps! resolved-deps-tree unresolved-deps-tree paths ctx))]
+      (when-not (or skip-repackage-java-classes (empty? (u/class-files srcdeps)))
+        (let [jar-file (fs/file (fs/parent srcdeps) "class-deps.jar")]
+          ;; rewrite java imports across all inlined sources (deps + the project's
+          ;; own files) while the class files are still in their original
+          ;; (unprefixed) locations, so their names are known
+          (prefix-java-imports! pname pversion srcdeps prefix-exclusions)
+          (class-deps-jar! srcdeps jar-file)
+          (u/apply-jarjar! pname pversion srcdeps jar-file)
+          (replace-class-deps! srcdeps jar-file)))
+      (when report
+        (print-run-report reports ctx)))))
 
 (def default-repositories
   "Maven repositories used to resolve dependencies when none are supplied."
@@ -603,12 +622,15 @@
                        `:mranderson/inlined`.
   - `:print-deps-tree` when true, print the dependency tree that would be inlined
                        and return without inlining anything. Defaults to `false`.
+  - `:report`          when true, print a per-file run report (which namespaces'
+                       references were rewritten in each file) after inlining.
+                       Resolved-tree mode only. Defaults to `false`.
 
   Returns the resolved project prefix (handy when it was generated), or nil for a
   `:print-deps-tree` run."
   [{:keys [dependencies source-paths project-prefix target-path repositories
            pname pversion skip-repackage-java-classes prefix-exclusions
-           unresolved-tree overrides expositions watermark]
+           unresolved-tree overrides expositions watermark report]
     :or   {target-path                 "target"
            repositories                default-repositories
            pname                       "mranderson"
@@ -641,7 +663,8 @@
                                    :unresolved-tree             unresolved-tree
                                    :overrides                   overrides
                                    :expositions                 expositions
-                                   :watermark                   watermark}
+                                   :watermark                   watermark
+                                   :report                      report}
               paths               {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
                                    :parent-clj-dirs []
                                    :branch          []}]
