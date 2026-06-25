@@ -24,6 +24,7 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [mranderson.util :as util]
+            [mranderson.zloc :as zloc]
             [me.raynes.fs :as fs]
             [rewrite-clj.zip :as z]
             [rewrite-clj.node :as n]
@@ -72,9 +73,8 @@
 
 (defn- java-style-prefix?
   [old-sym node]
-  (when-not (#{:uneval} (z/tag node))
-    (when-let [node-sexpr (z/sexpr node)]
-      (str/starts-with? node-sexpr (java-package old-sym)))))
+  (when-let [node-sexpr (z/sexpr node)]
+    (str/starts-with? node-sexpr (java-package old-sym))))
 
 (defn- libspec-prefix?
   [node node-sexpr old-sym]
@@ -82,20 +82,17 @@
         first-node?            (z/leftmost? node)
         parent-leftmost-node   (z/leftmost (z/up node))
         parent-leftmost-sexpr  (and parent-leftmost-node
-                                    (not
-                                     (#{:uneval}
-                                      (z/tag parent-leftmost-node)))
+                                    (not (zloc/uneval? parent-leftmost-node))
                                     (z/sexpr parent-leftmost-node))]
     (and first-node?
          (= :require parent-leftmost-sexpr)
          (= node-sexpr old-sym-prefix-libspec))))
 
 (defn- contains-sym? [old-sym node]
-  (when-not (#{:uneval} (z/tag node))
-    (when-let [node-sexpr (z/sexpr node)]
-      (or
-       (= node-sexpr old-sym)
-       (libspec-prefix? node node-sexpr old-sym)))))
+  (when-let [node-sexpr (z/sexpr node)]
+    (or
+     (= node-sexpr old-sym)
+     (libspec-prefix? node node-sexpr old-sym))))
 
 (defn- ->new-node [old-node old-sym new-sym]
   (let [old-prefix (prefix-libspec old-sym)]
@@ -119,7 +116,7 @@
       :else new-node)))
 
 (defn- ns-decl? [node]
-  (when-not (#{:uneval} (z/tag node))
+  (when-not (zloc/uneval? node)
     (= 'ns (z/sexpr (z/down node)))))
 
 (def ^:const ns-form-placeholder (str "ns_" "form_" "placeholder"))
@@ -138,9 +135,8 @@
           [nil content])))))
 
 (defn- import? [node]
-  (when-not (#{:uneval} (z/tag node))
-    (when-let [node-sexpr (z/sexpr node)]
-      (= :import node-sexpr))))
+  (when-let [node-sexpr (z/sexpr node)]
+    (= :import node-sexpr)))
 
 (defn- ->new-import-node [old-sym new-sym old-node]
   (let [new-node (str/replace old-node (java-package old-sym) (java-package new-sym))]
@@ -152,33 +148,18 @@
 (defn- replace-in-import* [import-loc old-sym new-sym]
   (loop [loc import-loc]
     (if-let [found-node (some-> loc
-                                (z/find-next-depth-first (partial java-style-prefix? old-sym))
+                                (zloc/find-next-depth-first (partial java-style-prefix? old-sym))
                                 (z/edit (partial ->new-import-node old-sym new-sym)))]
       (recur found-node)
       (z/root loc))))
 
 (defn- replace-in-import [ns-loc old-sym new-sym]
-  (if-let [import-loc (some-> (z/find-next-depth-first ns-loc import?)
+  (if-let [import-loc (some-> (zloc/find-next-depth-first ns-loc import?)
                               (z/up))]
     (-> (z/replace import-loc (replace-in-import* (z/of-node (z/node import-loc)) old-sym new-sym))
         z/root
         z/of-node)
     ns-loc))
-
-(defn- zskip-unintresting
-  ;; TODO: move to a zloc ns and expand to handle all zip operations
-  "Rewrite-clj only skips whitespace and comments.
-  We'd also like to skip reader discard #_ nodes (aka uneval nodes in rewrite-clj)."
-  [zloc]
-  (z/skip z/right* #(or (z/whitespace-or-comment? %)
-                        (= :uneval (z/tag %)))
-          zloc))
-
-(defn- zdown [zloc]
-  (some-> zloc z/down* zskip-unintresting))
-
-(defn- zright [zloc]
-  (some-> zloc z/right* zskip-unintresting))
 
 (defn ^:no-doc rename-ns
   ;; exposed only for unit testing, could move to impl ns
@@ -192,7 +173,7 @@
   We make an effort to preserve existing ordering and syntax of metadata."
   [ns-loc old-ns-name new-ns-name add-meta-kw]
   (when ns-loc
-    (let [ns-name-loc (some-> ns-loc zdown zright)
+    (let [ns-name-loc (some-> ns-loc zloc/down zloc/right)
           cur-has-meta? (= :meta (z/tag ns-name-loc))
           ns-loc (cond
                    (not= (z/sexpr ns-name-loc) old-ns-name)
@@ -200,15 +181,15 @@
 
                    add-meta-kw
                    (if cur-has-meta?
-                     (cond-> (zdown ns-name-loc)
+                     (cond-> (zloc/down ns-name-loc)
                        ;; convert existing ^:some-meta to ^{:some-meta true ...}
-                       (-> ns-name-loc zdown z/node n/keyword-node?)
+                       (-> ns-name-loc zloc/down z/node n/keyword-node?)
                        (z/edit (fn [kw] (n/map-node [kw (n/spaces 1) true])))
 
                        ;; append our new meta to existing ^{:some-meta true ...}
                        :always
                        (-> (z/assoc add-meta-kw true)
-                           zright
+                           zloc/right
                            (z/replace new-ns-name)))
                      ;; no existing meta, add it in
                      (-> ns-name-loc
@@ -218,8 +199,8 @@
 
                    cur-has-meta?
                    (-> ns-name-loc
-                       zdown ;; to current meta
-                       zright ;; to namespace name
+                       zloc/down ;; to current meta
+                       zloc/right ;; to namespace name
                        (z/replace new-ns-name))
 
                    :else
@@ -232,7 +213,7 @@
 (defn- replace-in-ns-form [ns-loc old-sym new-sym watermark]
   (loop [loc (-> (rename-ns ns-loc old-sym new-sym watermark)
                  (replace-in-import old-sym new-sym))]
-    (if-let [found-node (some-> (z/find-next-depth-first loc (partial contains-sym? old-sym))
+    (if-let [found-node (some-> (zloc/find-next-depth-first loc (partial contains-sym? old-sym))
                                 (z/edit (partial replace-in-node old-sym new-sym)))]
       (recur found-node)
       (z/root-string loc))))
@@ -312,8 +293,7 @@
     (str/replace source-sans-ns regex (partial source-replacement old-sym new-sym))))
 
 (defn- after-platform-marker? [platform node]
-  (when-not (#{:uneval} (z/tag node))
-    (= platform (z/sexpr (z/left node)))))
+  (= platform (z/sexpr (z/left node))))
 
 (defn- find-and-replace-platform-specific-subforms
   "In a `.cljc` ns form, masks the subforms belonging to `platform` (the opposite
@@ -323,7 +303,7 @@
   [platform ns-loc]
   (loop [loc         ns-loc
          found-nodes []]
-    (if-let [found-node (z/find-next-depth-first loc (partial after-platform-marker? platform))]
+    (if-let [found-node (zloc/find-next-depth-first loc (partial after-platform-marker? platform))]
       (recur (z/replace found-node (symbol (str (name platform) "_require"))) (conj found-nodes found-node))
       [found-nodes (z/of-node (z/root loc))])))
 

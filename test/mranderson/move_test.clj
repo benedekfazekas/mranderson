@@ -421,3 +421,17 @@
       (t/is (str/includes?
              (sut/replace-ns-symbols body renames ".clj")
              "pre.com.acme.impl.Widget.")))))
+
+(t/deftest replace-ns-symbols-skips-reader-discards
+  ;; #82: a reader-discarded (#_) form in the ns macro must be left untouched,
+  ;; even when it holds a symbol matching a rename. Only the live occurrence is
+  ;; rewritten.
+  (let [renames [{:old-sym 'a.b :new-sym 'x.y :extension ".clj" :watermark nil}]]
+    (t/testing "discarded :require libspec survives, live one is renamed"
+      (let [out (sut/replace-ns-symbols "(ns foo (:require #_[a.b :as old] [a.b :as live]))" renames ".clj")]
+        (t/is (str/includes? out "#_[a.b :as old]"))
+        (t/is (str/includes? out "[x.y :as live]"))))
+    (t/testing "discarded :import survives, live one is renamed"
+      (let [out (sut/replace-ns-symbols "(ns foo (:import #_[a.b Thing] [a.b Live]))" renames ".clj")]
+        (t/is (str/includes? out "#_[a.b Thing]"))
+        (t/is (str/includes? out "[x.y Live]"))))))
