@@ -1,4 +1,4 @@
-(ns mranderson.util
+(ns ^:no-doc mranderson.util
   "Filesystem, class-file and jarjar helpers shared across the pipeline.
 
   Two concerns live here: locating and normalizing Clojure source dirs and
