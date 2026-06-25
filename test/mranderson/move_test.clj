@@ -435,3 +435,30 @@
       (let [out (sut/replace-ns-symbols "(ns foo (:import #_[a.b Thing] [a.b Live]))" renames ".clj")]
         (t/is (str/includes? out "#_[a.b Thing]"))
         (t/is (str/includes? out "[x.y Live]"))))))
+
+(t/deftest replace-ns-symbols-handles-already-inlined-sources
+  ;; #39: MrAnderson can inline a library that was itself built by inlining its
+  ;; deps (so it ships watermarked, already-prefixed namespaces). The watermark
+  ;; is write-only - nothing reads it back - so such namespaces are simply
+  ;; re-prefixed, nesting one inline inside the other. This locks in that the
+  ;; rewrite layer handles that cleanly.
+  (let [;; a namespace as it ships inside an already-inlined library `libl`
+        source  (str "(ns ^{:mranderson/inlined true} libl.inlined-deps.dep.core\n"
+                     "  (:require [libl.inlined-deps.dep.util :as u]))\n"
+                     "(defn go [] (u/help libl.inlined-deps.dep.util.Widget))")
+        renames [{:old-sym 'libl.inlined-deps.dep.core
+                  :new-sym 'proj.inlined-deps.libl.inlined-deps.dep.core
+                  :extension ".clj" :watermark :mranderson/inlined}
+                 {:old-sym 'libl.inlined-deps.dep.util
+                  :new-sym 'proj.inlined-deps.libl.inlined-deps.dep.util
+                  :extension ".clj" :watermark :mranderson/inlined}]
+        out     (sut/replace-ns-symbols source renames ".clj")]
+    (t/testing "the already-inlined ns name gets the new nested prefix"
+      (t/is (str/includes? out "proj.inlined-deps.libl.inlined-deps.dep.core")))
+    (t/testing "the existing watermark is preserved, not duplicated"
+      (t/is (str/includes? out "^{:mranderson/inlined true}"))
+      (t/is (= 1 (count (re-seq #":mranderson/inlined" out)))))
+    (t/testing "an internal require is repointed to the nested prefix"
+      (t/is (str/includes? out "[proj.inlined-deps.libl.inlined-deps.dep.util :as u]")))
+    (t/testing "a fully-qualified class reference is nested and Java-munged"
+      (t/is (str/includes? out "proj.inlined_deps.libl.inlined_deps.dep.util.Widget")))))
