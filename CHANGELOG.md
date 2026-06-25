@@ -4,12 +4,12 @@
 
 ### Bug fixes
 
-- [#82](https://github.com/benedekfazekas/mranderson/issues/82) Leave reader-discarded (`#_`) forms in the `ns` macro untouched during a rename. A symbol buried inside a discarded `:require`/`:import` (e.g. `#_[a.b :as c]`) was previously rewritten, since the guards only skipped the discard node itself, not its contents
+- [#82](https://github.com/benedekfazekas/mranderson/issues/82): Leave reader-discarded (`#_`) forms in the `ns` macro untouched during a rename. A symbol buried inside a discarded `:require`/`:import` (e.g. `#_[a.b :as c]`) was previously rewritten, since the guards only skipped the discard node itself, not its contents
 
 ### Changes
 
-- [#65](https://github.com/benedekfazekas/mranderson/issues/65) Mark internal namespaces (`mranderson.util`, `mranderson.move`, `mranderson.dependency.*`) `:no-doc` so cljdoc documents only the public API (`mranderson.core`, `mranderson.plugin`, `leiningen.inline-deps`)
-- [#82](https://github.com/benedekfazekas/mranderson/issues/82) Centralize reader-discard handling in a new internal `mranderson.zloc` namespace that wraps rewrite-clj navigation, instead of scattering `:uneval` checks through `mranderson.move`
+- [#65](https://github.com/benedekfazekas/mranderson/issues/65): Mark internal namespaces (`mranderson.util`, `mranderson.move`, `mranderson.dependency.*`) `:no-doc` so cljdoc documents only the public API (`mranderson.core`, `mranderson.plugin`, `leiningen.inline-deps`)
+- [#82](https://github.com/benedekfazekas/mranderson/issues/82): Centralize reader-discard handling in a new internal `mranderson.zloc` namespace that wraps rewrite-clj navigation, instead of scattering `:uneval` checks through `mranderson.move`
 
 ## 0.6.1
 
@@ -17,8 +17,8 @@
 
 - Only add a namespace to `:aot` (Leiningen plugin) when its `ns` form actually has a `:gen-class` clause, not when `:gen-class` merely appears as text in a docstring or comment
 - Leave a fully-qualified reference to a repackaged Java class (e.g. `(some.pkg.Widget. ...)`) untouched during the namespace move when its package is also a moved namespace, so the java-import pass can point it at the jarjar-repackaged class instead of the namespace prefix (otherwise it threw `ClassNotFoundException` at runtime). Deftype/defrecord classes, which have no `.class` file, still move with their namespace
-- [#33](https://github.com/benedekfazekas/mranderson/issues/33) Split a mixed `(:import ...)` correctly when a deftype class and a repackaged Java class share a package (e.g. claypoole): the Java class now points at its jarjar package even though the namespace move has already prefixed the shared package
-- [#97](https://github.com/benedekfazekas/mranderson/issues/97) Prefix repackaged Java classes referenced in a namespace body even when the file has no `(:import ...)` form (previously such references were left bare and threw `ClassNotFoundException` at runtime)
+- [#33](https://github.com/benedekfazekas/mranderson/issues/33): Split a mixed `(:import ...)` correctly when a deftype class and a repackaged Java class share a package (e.g. claypoole): the Java class now points at its jarjar package even though the namespace move has already prefixed the shared package
+- [#97](https://github.com/benedekfazekas/mranderson/issues/97): Prefix repackaged Java classes referenced in a namespace body even when the file has no `(:import ...)` form (previously such references were left bare and threw `ClassNotFoundException` at runtime)
 
 ### Changes
 
@@ -46,8 +46,8 @@
 
 ### Changes
 
-- [#89](https://github.com/benedekfazekas/mranderson/issues/89) Warn when `:aot` is configured, since inlining AOT-compiled namespaces produces broken prefixes
-- [#69](https://github.com/benedekfazekas/mranderson/issues/69) Document the local build/install workflow and fix the `Makefile` so `make install` installs an inlined MrAnderson to the local maven repo
+- [#89](https://github.com/benedekfazekas/mranderson/issues/89): Warn when `:aot` is configured, since inlining AOT-compiled namespaces produces broken prefixes
+- [#69](https://github.com/benedekfazekas/mranderson/issues/69): Document the local build/install workflow and fix the `Makefile` so `make install` installs an inlined MrAnderson to the local maven repo
 - [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] add `mranderson.core/inline-deps`, a Leiningen-free entry point usable from `tools.build`/`tools.deps`
 - [feature [#42](https://github.com/benedekfazekas/mranderson/issues/42)] uncouple MrAnderson from leiningen to support general use 
 - [maint [#66](https://github.com/benedekfazekas/mranderson/issues/66)] bump MrAnderson dependencies

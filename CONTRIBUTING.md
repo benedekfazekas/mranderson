@@ -103,8 +103,8 @@ itself. If your change breaks the engine, that's usually where it shows up.
   unit test that feeds clean inputs; the latter has a habit of passing while the
   real pipeline is broken.
 - **Changelog.** Add a terse entry to the `Unreleased` section of
-  `CHANGELOG.md`, prefixed with the issue/PR link, in the style of the existing
-  entries.
+  `CHANGELOG.md`, prefixed with the issue/PR link followed by a colon
+  (`- [#NN](link): ...`), in the style of the existing entries.
 - **Commits.** Focused, logical commits with a message that explains the *why*.
   Reference issues with `[#NN]`, or `[Fix #NN]` only when the commit fully closes
   the issue.
