@@ -1,5 +1,6 @@
 (ns mranderson.core-test
   (:require [mranderson.core :as sut]
+            [mranderson.dependency.resolver]
             [mranderson.test :refer [with-mranderson]]
             [mranderson.util :as util]
             [clojure.java.io :as io]
@@ -451,3 +452,43 @@
         (is (not (string/includes?
                   content
                   (str prefix ".claypoole.v1v1v4.com.climate.claypoole.impl PriorityThreadpoolImpl"))))))))
+
+;; ## #24 - print the dependency tree and exit
+
+(def ^:private deps-tree-lines #'sut/deps-tree-lines)
+
+(deftest t-deps-tree-lines
+  (testing "renders a nested dep tree, two spaces of indent per level"
+    (let [tree (array-map
+                ['a "1"] (array-map ['b "2"] nil
+                                    ['c "3"] (array-map ['d "4"] nil))
+                ['e "5"] nil)]
+      (is (= ["[a \"1\"]"
+              "  [b \"2\"]"
+              "  [c \"3\"]"
+              "    [d \"4\"]"
+              "[e \"5\"]"]
+             (deps-tree-lines tree))))))
+
+(deftest t-print-deps-tree
+  (testing "prints the resolved tree and inlines nothing"
+    (let [resolved (array-map ['org.clojure/tools.namespace "1.4.4"]
+                              (array-map ['org.clojure/java.classpath "1.0.0"] nil))]
+      (with-redefs [mranderson.dependency.resolver/resolve-source-deps
+                    (fn [_repos _deps] resolved)]
+        (let [out (with-out-str
+                    (sut/print-deps-tree []
+                                         '[^:inline-dep [org.clojure/tools.namespace "1.4.4"]]
+                                         {}))]
+          (is (string/includes? out "[org.clojure/tools.namespace \"1.4.4\"]"))
+          (is (string/includes? out "  [org.clojure/java.classpath \"1.0.0\"]"))))))
+  (testing "prints the unresolved tree when unresolved-tree mode is on"
+    (let [resolved   (array-map ['top "1"] nil)
+          unresolved (array-map ['top "1"] (array-map ['nested "2"] nil))]
+      (with-redefs [mranderson.dependency.resolver/resolve-source-deps
+                    (fn [_repos _deps] resolved)
+                    mranderson.dependency.resolver/expand-dep-hierarchy
+                    (fn [_repos _tree _overrides] unresolved)]
+        (let [out (with-out-str
+                    (sut/print-deps-tree [] '[^:inline-dep [top "1"]] {:unresolved-tree true}))]
+          (is (string/includes? out "  [nested \"2\"]")))))))

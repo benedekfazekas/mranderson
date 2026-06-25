@@ -69,7 +69,8 @@
      :unresolved-tree             (lookup-opt :unresolved-tree cli-opts mranderson)
      :overrides                   (lookup-opt :overrides cli-opts mranderson)
      :expositions                 (lookup-opt :expositions cli-opts mranderson)
-     :watermark                   (lookup-opt :watermark cli-opts mranderson :mranderson/inlined)}))
+     :watermark                   (lookup-opt :watermark cli-opts mranderson :mranderson/inlined)
+     :print-deps-tree             (lookup-opt :print-deps-tree cli-opts mranderson)}))
 
 (defn- initial-paths [target-path pprefix]
   {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
@@ -90,10 +91,13 @@
   :unresolved-tree          boolean   Enforces unresolved tree mode
   :overrides                map       Dependency overrides, unresolved-tree mode only
   :expositions              list      Transitive deps exposed to the project's own sources, unresolved-tree mode only
-  :watermark                keyword   Metadata key added to inlined namespaces (default: :mranderson/inlined; nil to disable)"
+  :watermark                keyword   Metadata key added to inlined namespaces (default: :mranderson/inlined; nil to disable)
+  :print-deps-tree          boolean   Print the dependency tree that would be inlined, then exit without inlining"
   [{:keys [repositories dependencies target-path] :as project} & args]
-  (warn-on-aot project)
-  (c/copy-source-files (u/determine-source-dirs project) target-path)
-  (let [{:keys [pprefix] :as ctx} (lein-project->ctx project args)
-        paths                     (initial-paths target-path pprefix)]
-    (c/mranderson repositories dependencies ctx paths)))
+  (let [{:keys [pprefix print-deps-tree] :as ctx} (lein-project->ctx project args)]
+    (if print-deps-tree
+      (c/print-deps-tree repositories dependencies ctx)
+      (do
+        (warn-on-aot project)
+        (c/copy-source-files (u/determine-source-dirs project) target-path)
+        (c/mranderson repositories dependencies ctx (initial-paths target-path pprefix))))))

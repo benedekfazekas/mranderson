@@ -525,6 +525,32 @@
   [dependencies]
   (mapv #(vary-meta % assoc :inline-dep true) dependencies))
 
+(defn- deps-tree-lines
+  "Renders a dependency `tree` (a nested `[name version] -> subtree` map) to a
+  vector of strings, one coordinate per line, indented two spaces per level."
+  [tree]
+  (let [lines (volatile! [])]
+    (t/walk-deps tree (fn [dep level]
+                        (vswap! lines conj (str (apply str (repeat (* 2 level) \space))
+                                                (pr-str dep)))))
+    @lines))
+
+(defn print-deps-tree
+  "Resolves the inlinable entries of `dependencies` against `repositories` and
+  prints the dependency tree that inlining would process, then returns nil
+  without inlining anything. Prints the resolved tree, or the unresolved (deeply
+  nested) tree when `:unresolved-tree` is set in `opts` (honoring `:overrides`),
+  to match what the corresponding mode would actually walk. Backs the
+  `:print-deps-tree` option."
+  [repositories dependencies {:keys [unresolved-tree overrides]}]
+  (let [source-deps   (filter u/source-dep? dependencies)
+        resolved-tree (dr/resolve-source-deps repositories source-deps)
+        tree          (if unresolved-tree
+                        (dr/expand-dep-hierarchy repositories resolved-tree (or overrides {}))
+                        resolved-tree)]
+    (doseq [line (deps-tree-lines tree)]
+      (log/info line))))
+
 (defn inline-deps
   "Inline and shadow `:dependencies` so they cannot interfere with the
   dependencies of downstream consumers.
@@ -575,8 +601,11 @@
                        unresolved-tree mode.
   - `:watermark`       meta key marking inlined namespaces. Defaults to
                        `:mranderson/inlined`.
+  - `:print-deps-tree` when true, print the dependency tree that would be inlined
+                       and return without inlining anything. Defaults to `false`.
 
-  Returns the resolved project prefix (handy when it was generated)."
+  Returns the resolved project prefix (handy when it was generated), or nil for a
+  `:print-deps-tree` run."
   [{:keys [dependencies source-paths project-prefix target-path repositories
            pname pversion skip-repackage-java-classes prefix-exclusions
            unresolved-tree overrides expositions watermark]
@@ -586,31 +615,35 @@
            pversion                    "0.0.0"
            skip-repackage-java-classes false
            unresolved-tree             false
-           watermark                   :mranderson/inlined}}]
+           watermark                   :mranderson/inlined}
+    :as   opts}]
   (assert (seq dependencies) ":dependencies must be a non-empty collection")
-  (assert (seq source-paths) ":source-paths must be a non-empty collection")
-  (let [target-path (str target-path)
-        pprefix     (or (some-> project-prefix name) (default-project-prefix))]
-    ;; The project's own sources have to live next to the inlined deps so that
-    ;; their references can be rewritten too.
-    (copy-source-files source-paths target-path)
-    (let [srcdeps             (str target-path "/srcdeps")
-          ;; At this point srcdeps only holds the copied project sources; the
-          ;; prefix dir for the deps does not exist yet.
-          project-source-dirs (filter fs/directory? (or (.listFiles (io/file srcdeps)) []))
-          ctx                 {:pname                       pname
-                               :pversion                    (str pversion)
-                               :pprefix                     pprefix
-                               :skip-repackage-java-classes skip-repackage-java-classes
-                               :srcdeps                     srcdeps
-                               :prefix-exclusions           prefix-exclusions
-                               :project-source-dirs         project-source-dirs
-                               :unresolved-tree             unresolved-tree
-                               :overrides                   overrides
-                               :expositions                 expositions
-                               :watermark                   watermark}
-          paths               {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
-                               :parent-clj-dirs []
-                               :branch          []}]
-      (mranderson repositories (mark-inline dependencies) ctx paths)
-      pprefix)))
+  (if (:print-deps-tree opts)
+    (print-deps-tree repositories (mark-inline dependencies) opts)
+    (do
+      (assert (seq source-paths) ":source-paths must be a non-empty collection")
+      (let [target-path (str target-path)
+            pprefix     (or (some-> project-prefix name) (default-project-prefix))]
+        ;; The project's own sources have to live next to the inlined deps so that
+        ;; their references can be rewritten too.
+        (copy-source-files source-paths target-path)
+        (let [srcdeps             (str target-path "/srcdeps")
+              ;; At this point srcdeps only holds the copied project sources; the
+              ;; prefix dir for the deps does not exist yet.
+              project-source-dirs (filter fs/directory? (or (.listFiles (io/file srcdeps)) []))
+              ctx                 {:pname                       pname
+                                   :pversion                    (str pversion)
+                                   :pprefix                     pprefix
+                                   :skip-repackage-java-classes skip-repackage-java-classes
+                                   :srcdeps                     srcdeps
+                                   :prefix-exclusions           prefix-exclusions
+                                   :project-source-dirs         project-source-dirs
+                                   :unresolved-tree             unresolved-tree
+                                   :overrides                   overrides
+                                   :expositions                 expositions
+                                   :watermark                   watermark}
+              paths               {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
+                                   :parent-clj-dirs []
+                                   :branch          []}]
+          (mranderson repositories (mark-inline dependencies) ctx paths)
+          pprefix)))))

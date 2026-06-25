@@ -6,6 +6,10 @@
 
 - [#82](https://github.com/benedekfazekas/mranderson/issues/82): Leave reader-discarded (`#_`) forms in the `ns` macro untouched during a rename. A symbol buried inside a discarded `:require`/`:import` (e.g. `#_[a.b :as c]`) was previously rewritten, since the guards only skipped the discard node itself, not its contents
 
+### New features
+
+- [#24](https://github.com/benedekfazekas/mranderson/issues/24): Add a `:print-deps-tree` option (and `mranderson.core/print-deps-tree`) that prints the dependency tree inlining would process and exits without inlining: `lein inline-deps :print-deps-tree true`
+
 ### Changes
 
 - [#65](https://github.com/benedekfazekas/mranderson/issues/65): Mark internal namespaces (`mranderson.util`, `mranderson.move`, `mranderson.dependency.*`) `:no-doc` so cljdoc documents only the public API (`mranderson.core`, `mranderson.plugin`, `leiningen.inline-deps`)
