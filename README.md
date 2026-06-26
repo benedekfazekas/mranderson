@@ -113,6 +113,32 @@ clojure -T:build inline-deps
 
 See the docstring of `mranderson.core/inline-deps` for the full list of options.
 
+`:source-paths` is optional. Omit it to just pull in and shadow some
+dependencies under a prefix, with no project sources to rewrite - handy from the
+REPL when you want to grab a library and shadow it on the fly:
+
+```clojure
+(mranderson.core/inline-deps
+ {:project-prefix "repl.inlined"
+  :dependencies   '[[org.clojure/data.xml "0.2.0-alpha6"]]})
+;; => shadowed sources under target/srcdeps/repl/inlined/...
+```
+
+### Public API
+
+MrAnderson's supported, stable API is small:
+
+- `mranderson.core/inline-deps` - the data-driven entry point described above.
+- `mranderson.core/print-deps-tree` - print the dependency tree that would be
+  inlined (also reachable via the `:print-deps-tree` option).
+- `mranderson.core/default-repositories` - the default Maven repositories.
+- The `lein inline-deps` task (`leiningen.inline-deps`), a thin wrapper over
+  `inline-deps`, and the `mranderson.plugin` middleware that backs it.
+
+Everything else - the lower-level `mranderson.core/mranderson` workhorse, the
+`mranderson.move` rewriting engine, and the other namespaces - is internal
+plumbing (marked `:no-doc`) and may change between releases without notice.
+
 ## Config and options
 
 ### Two modes: resolved tree and unresolved tree
