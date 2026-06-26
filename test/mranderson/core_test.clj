@@ -205,7 +205,17 @@
             (str expected-2))
 
         (finally
-          (cleanup!))))))
+          (cleanup!)))))
+
+  (testing "creates the srcdeps dir even with no source paths (standalone dep shadowing, #34)"
+    (let [target-dir (str (fs/temp-dir "mranderson-copy"))
+          srcdeps    (io/file target-dir "srcdeps")]
+      (try
+        (is (not (.exists srcdeps)))
+        (sut/copy-source-files [] target-dir)
+        (is (.isDirectory srcdeps) "srcdeps is created so inlining can unzip into it")
+        (finally
+          (fs/delete-dir (File. target-dir)))))))
 
 (def ^:private prefix-occurrences #'sut/prefix-occurrences)
 (def ^:private rewrite-java-imports #'sut/rewrite-java-imports)

@@ -428,15 +428,18 @@
       :branch          (conj branch (first dep))
       :parent-clj-dirs (map fs/file clj-dirs)}]))
 
-(defn copy-source-files
+(defn ^:no-doc copy-source-files
   "Copies each of `source-paths` into `<target-path>/<target-suffix>`
   (`target-suffix` defaults to `\"srcdeps\"`). Stages the project's own sources
-  alongside the inlined deps so their references can be rewritten too."
+  alongside the inlined deps so their references can be rewritten too. Always
+  creates the destination directory, even when `source-paths` is empty (a
+  standalone dep-shadowing run with no project sources)."
   ([source-paths target-path]
    (copy-source-files source-paths target-path "srcdeps"))
 
   ([source-paths target-path target-suffix]
    (let [to (-> target-path (io/file target-suffix) .toString)]
+     (.mkdirs (io/file to))
      (doseq [source-path source-paths]
        (fs/copy-dir-into source-path to)))))
 
@@ -490,8 +493,10 @@
                           (u/srcdeps-relative srcdeps file)
                           old-sym new-sym refs (if (= 1 refs) "" "s")))))))
 
-(defn mranderson
-  "Inline and shadow dependencies so they can not interfere with other libraries' dependencies.
+(defn ^:no-doc mranderson
+  "Low-level inlining workhorse. Prefer `inline-deps`, the supported entry point;
+  this is internal plumbing the lein task and `inline-deps` build on, and its
+  signature is not part of the stable API.
 
   `repositories` to resolve dependencies, `dependencies` list of dependencies to inline and shadow, `ctx` for opts and project specific attributes, `paths` for project specific paths.
 
@@ -574,9 +579,10 @@
   "Inline and shadow `:dependencies` so they cannot interfere with the
   dependencies of downstream consumers.
 
-  This is the Leiningen-free counterpart of the `leiningen.inline-deps` plugin
-  task: it takes a plain options map instead of a Leiningen project map, which
-  makes it usable from a `tools.build` build script:
+  This is the supported, Leiningen-free entry point (the `leiningen.inline-deps`
+  plugin task is a thin wrapper over it). It takes a plain options map instead of
+  a Leiningen project map, which makes it usable from a `tools.build` build
+  script, the Clojure CLI, or the REPL:
 
       (require '[mranderson.core :as mranderson])
       (mranderson/inline-deps
@@ -585,6 +591,10 @@
         :dependencies   '[[org.clojure/tools.namespace \"1.5.1\"]]})
 
   or directly as a Clojure CLI tool function (`clojure -T:mranderson inline-deps`).
+
+  `:source-paths` is optional - omit it to just pull in and shadow the
+  dependencies under `:project-prefix` (handy from the REPL), with no project
+  sources to rewrite.
 
   The project's own `:source-paths` and the resolved dependency sources are
   copied into `<target-path>/srcdeps`, with the dependency namespaces (and
@@ -596,8 +606,8 @@
   - `:dependencies`    (required) vector of `[lib version & kvs]` coordinates to
                        inline. Every entry is treated as an inline dep, so there
                        is no need to attach `^:inline-dep` meta yourself.
-  - `:source-paths`    (required) the project's own source directories to copy
-                       into `srcdeps` and rewrite.
+  - `:source-paths`    the project's own source directories to copy into
+                       `srcdeps` and rewrite. Optional; defaults to none.
   - `:project-prefix`  namespace/path prefix for the shadowed deps. Defaults to a
                        random `mranderson<hex>` prefix; set a stable value for
                        reproducible output.
@@ -632,6 +642,7 @@
            pname pversion skip-repackage-java-classes prefix-exclusions
            unresolved-tree overrides expositions watermark report]
     :or   {target-path                 "target"
+           source-paths                []
            repositories                default-repositories
            pname                       "mranderson"
            pversion                    "0.0.0"
@@ -642,31 +653,29 @@
   (assert (seq dependencies) ":dependencies must be a non-empty collection")
   (if (:print-deps-tree opts)
     (print-deps-tree repositories (mark-inline dependencies) opts)
-    (do
-      (assert (seq source-paths) ":source-paths must be a non-empty collection")
-      (let [target-path (str target-path)
-            pprefix     (or (some-> project-prefix name) (default-project-prefix))]
-        ;; The project's own sources have to live next to the inlined deps so that
-        ;; their references can be rewritten too.
-        (copy-source-files source-paths target-path)
-        (let [srcdeps             (str target-path "/srcdeps")
-              ;; At this point srcdeps only holds the copied project sources; the
-              ;; prefix dir for the deps does not exist yet.
-              project-source-dirs (filter fs/directory? (or (.listFiles (io/file srcdeps)) []))
-              ctx                 {:pname                       pname
-                                   :pversion                    (str pversion)
-                                   :pprefix                     pprefix
-                                   :skip-repackage-java-classes skip-repackage-java-classes
-                                   :srcdeps                     srcdeps
-                                   :prefix-exclusions           prefix-exclusions
-                                   :project-source-dirs         project-source-dirs
-                                   :unresolved-tree             unresolved-tree
-                                   :overrides                   overrides
-                                   :expositions                 expositions
-                                   :watermark                   watermark
-                                   :report                      report}
-              paths               {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
-                                   :parent-clj-dirs []
-                                   :branch          []}]
-          (mranderson repositories (mark-inline dependencies) ctx paths)
-          pprefix)))))
+    (let [target-path (str target-path)
+          pprefix     (or (some-> project-prefix name) (default-project-prefix))]
+      ;; The project's own sources have to live next to the inlined deps so that
+      ;; their references can be rewritten too.
+      (copy-source-files source-paths target-path)
+      (let [srcdeps             (str target-path "/srcdeps")
+            ;; At this point srcdeps only holds the copied project sources; the
+            ;; prefix dir for the deps does not exist yet.
+            project-source-dirs (filter fs/directory? (or (.listFiles (io/file srcdeps)) []))
+            ctx                 {:pname                       pname
+                                 :pversion                    (str pversion)
+                                 :pprefix                     pprefix
+                                 :skip-repackage-java-classes skip-repackage-java-classes
+                                 :srcdeps                     srcdeps
+                                 :prefix-exclusions           prefix-exclusions
+                                 :project-source-dirs         project-source-dirs
+                                 :unresolved-tree             unresolved-tree
+                                 :overrides                   overrides
+                                 :expositions                 expositions
+                                 :watermark                   watermark
+                                 :report                      report}
+            paths               {:src-path        (fs/file target-path "srcdeps" (u/sym->file-name pprefix))
+                                 :parent-clj-dirs []
+                                 :branch          []}]
+        (mranderson repositories (mark-inline dependencies) ctx paths)
+        pprefix))))
