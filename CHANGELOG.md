@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0
+
 ### Bug fixes
 
 - [#82](https://github.com/benedekfazekas/mranderson/issues/82): Leave reader-discarded (`#_`) forms in the `ns` macro untouched during a rename. A symbol buried inside a discarded `:require`/`:import` (e.g. `#_[a.b :as c]`) was previously rewritten, since the guards only skipped the discard node itself, not its contents
