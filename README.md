@@ -130,6 +130,29 @@ REPL when you want to grab a library and shadow it on the fly:
 ;; => shadowed sources under target/srcdeps/repl/inlined/...
 ```
 
+### Command-line interface
+
+MrAnderson also ships a plain command-line entry point, `mranderson.main`, that
+takes the dependency coordinates to inline as positional arguments. Add it to a
+`deps.edn` alias:
+
+```clojure
+{:aliases
+ {:mranderson {:replace-deps {thomasa/mranderson {:mvn/version "0.7.0"}}
+               :main-opts    ["-m" "mranderson.main"]}}}
+```
+
+and run it:
+
+```
+clojure -M:mranderson -p com.example.inlined -s src \
+  org.clojure/tools.namespace:1.5.1 rewrite-clj:1.2.54
+```
+
+Coordinates are Maven-style (`group/artifact:version`). The options mirror
+`inline-deps`; run with `-h`/`--help` for the full list. As with `inline-deps`,
+`-s/--source-path` is optional - omit it to just shadow the given dependencies.
+
 ### Public API
 
 MrAnderson's supported, stable API is small:
@@ -138,6 +161,7 @@ MrAnderson's supported, stable API is small:
 - `mranderson.core/print-deps-tree` - print the dependency tree that would be
   inlined (also reachable via the `:print-deps-tree` option).
 - `mranderson.core/default-repositories` - the default Maven repositories.
+- `mranderson.main/-main` - the command-line entry point described above.
 - The `lein inline-deps` task (`leiningen.inline-deps`), a thin wrapper over
   `inline-deps`, and the `mranderson.plugin` middleware that backs it.
 

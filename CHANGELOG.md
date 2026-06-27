@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New features
+
+- [#35](https://github.com/benedekfazekas/mranderson/issues/35): Add a command-line interface, `mranderson.main`, that wraps `mranderson.core/inline-deps` so MrAnderson can be run without Leiningen: `clojure -M:mranderson -p com.example.inlined -s src org.clojure/tools.namespace:1.5.1`
+
 ## 0.7.0
 
 ### Bug fixes
