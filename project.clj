@@ -20,6 +20,7 @@
                  ^:inline-dep [org.clojure/tools.namespace "1.5.1"]
                  ^:inline-dep [clj-commons/fs "1.6.312"]
                  ^:inline-dep [rewrite-clj "1.2.54"]
+                 ^:inline-dep [org.clojure/tools.cli "1.1.230"]
                  [org.clojure/clojure "1.10.3" :scope "provided"]
                  [org.pantsbuild/jarjar "1.7.2"]]
   :mranderson {:project-prefix "mranderson.inlined"}
