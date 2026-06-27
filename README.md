@@ -77,6 +77,12 @@ function is a plain, data-driven entry point that does the same work as the
 `lein inline-deps` task. It's handy when your project is built with
 [tools.build](https://clojure.org/guides/tools_build).
 
+The published artifact carries no Leiningen dependency - the `lein inline-deps`
+task and the `mranderson.plugin` middleware are an optional wrapper over the same
+engine, and `leiningen-core` is only a development dependency here. So adding
+`thomasa/mranderson` to a tools.deps build pulls in just the inlining engine (and
+`jarjar` for Java-class repackaging), not Leiningen.
+
 Add MrAnderson to a build alias in `deps.edn`:
 
 ```clojure
