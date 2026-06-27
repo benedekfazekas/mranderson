@@ -14,6 +14,7 @@
 ### Changes
 
 - [#34](https://github.com/benedekfazekas/mranderson/issues/34): Finalize the public API: `mranderson.core/inline-deps` is the supported entry point, `:source-paths` is now optional (omit it to shadow dependencies standalone, e.g. from the REPL), and the lower-level `mranderson.core/mranderson` and `copy-source-files` are marked `:no-doc` as internal
+- [#42](https://github.com/benedekfazekas/mranderson/issues/42): Document that the published artifact carries no Leiningen dependency, so MrAnderson can be used directly from tools.deps/tools.build with the lein task as an optional wrapper
 - [#65](https://github.com/benedekfazekas/mranderson/issues/65): Mark internal namespaces (`mranderson.util`, `mranderson.move`, `mranderson.dependency.*`) `:no-doc` so cljdoc documents only the public API (`mranderson.core`, `mranderson.plugin`, `leiningen.inline-deps`)
 - [#82](https://github.com/benedekfazekas/mranderson/issues/82): Centralize reader-discard handling in a new internal `mranderson.zloc` namespace that wraps rewrite-clj navigation, instead of scattering `:uneval` checks through `mranderson.move`
 
