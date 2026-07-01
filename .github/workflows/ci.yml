@@ -105,6 +105,10 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        downstream: [cider-nrepl, refactor-nrepl]
     steps:
       - uses: actions/checkout@v4
 
@@ -133,6 +137,8 @@ jobs:
 
       # cider-nrepl/refactor-nrepl track moving upstream targets, so their builds
       # are informative but allowed to fail without turning the whole run red.
-      - name: Downstream integration (cider-nrepl, refactor-nrepl)
+      # One target per matrix job, so they run in parallel and failures are
+      # isolated to the offending library.
+      - name: Downstream integration (${{ matrix.downstream }})
         continue-on-error: true
-        run: scripts/downstream_test.sh
+        run: scripts/downstream_test.sh ${{ matrix.downstream }}
