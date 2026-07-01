@@ -1,0 +1,29 @@
+[{:path
+  "golden/inlined/puget/v1v0v2/arrangement/v1v1v1/arrangement/core.cljc",
+  :ns golden.inlined.puget.v1v0v2.arrangement.v1v1v1.arrangement.core}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/clojure.cljc",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.clojure}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/deque.cljc",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.deque}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/edn.cljc",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.edn}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/ednize.clj",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.ednize}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/ednize.cljs",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.ednize}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/engine.cljc",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.engine}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/repl.clj",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.repl}
+ {:path "golden/inlined/puget/v1v0v2/fipp/v0v6v10/fipp/visit.cljc",
+  :ns golden.inlined.puget.v1v0v2.fipp.v0v6v10.fipp.visit}
+ {:path "golden/inlined/puget/v1v0v2/puget/color.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.color}
+ {:path "golden/inlined/puget/v1v0v2/puget/color/ansi.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.color.ansi}
+ {:path "golden/inlined/puget/v1v0v2/puget/color/html.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.color.html}
+ {:path "golden/inlined/puget/v1v0v2/puget/dispatch.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.dispatch}
+ {:path "golden/inlined/puget/v1v0v2/puget/printer.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.printer}]

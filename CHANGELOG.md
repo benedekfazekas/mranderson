@@ -10,6 +10,8 @@
 
 - [#79](https://github.com/benedekfazekas/mranderson/issues/79): Rework the downstream integration tests to fetch pinned cider-nrepl/refactor-nrepl release sources instead of git submodules, repointed at the mranderson build under test (the submodules had drifted to an old pinned mranderson, so the test had stopped exercising local changes)
 - [#79](https://github.com/benedekfazekas/mranderson/issues/79): Add a golden-master test over the structure of generated inlining output (produced files and their rewritten namespaces) to catch unintended output changes
+- [#79](https://github.com/benedekfazekas/mranderson/issues/79): Cover unresolved-tree mode with its own golden fixture (the deeply nested layout), alongside the resolved-tree one
+- [#79](https://github.com/benedekfazekas/mranderson/issues/79): Run the two downstream integration libraries (cider-nrepl, refactor-nrepl) as parallel CI matrix jobs, so they run concurrently and a failure is isolated to the offending library
 
 ## 0.7.0
 
