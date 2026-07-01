@@ -6,6 +6,11 @@
 
 - [#35](https://github.com/benedekfazekas/mranderson/issues/35): Add a command-line interface, `mranderson.main`, that wraps `mranderson.core/inline-deps` so MrAnderson can be run without Leiningen: `clojure -M:mranderson -p com.example.inlined -s src org.clojure/tools.namespace:1.5.1`
 
+### Changes
+
+- [#79](https://github.com/benedekfazekas/mranderson/issues/79): Rework the downstream integration tests to fetch pinned cider-nrepl/refactor-nrepl release sources instead of git submodules, repointed at the mranderson build under test (the submodules had drifted to an old pinned mranderson, so the test had stopped exercising local changes)
+- [#79](https://github.com/benedekfazekas/mranderson/issues/79): Add a golden-master test over the structure of generated inlining output (produced files and their rewritten namespaces) to catch unintended output changes
+
 ## 0.7.0
 
 ### Bug fixes
