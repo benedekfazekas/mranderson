@@ -1,6 +1,0 @@
-[submodule "test-resources/cider-nrepl"]
-	path = test-resources/cider-nrepl
-	url = https://github.com/clojure-emacs/cider-nrepl.git
-[submodule "test-resources/refactor-nrepl"]
-	path = test-resources/refactor-nrepl
-	url = https://github.com/clojure-emacs/refactor-nrepl.git

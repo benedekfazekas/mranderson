@@ -107,8 +107,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up JDK
         uses: actions/setup-java@v4
