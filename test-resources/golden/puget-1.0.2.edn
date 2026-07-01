@@ -1,0 +1,94 @@
+[{:path "golden/inlined/arrangement/v1v1v1/arrangement/core.cljc",
+  :ns golden.inlined.arrangement.v1v1v1.arrangement.core}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector.clj",
+  :ns golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector.cljs",
+  :ns golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/debug.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.debug}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/debug.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.debug}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/fork_join.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.fork-join}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/interop.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.interop}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/interop.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.interop}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/macros.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.macros}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/nodes.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.nodes}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/nodes.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.nodes}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/protocols.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.protocols}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/protocols.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.protocols}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/rrbt.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.rrbt}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/rrbt.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.rrbt}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/transients.clj",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.transients}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/transients.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.transients}
+ {:path
+  "golden/inlined/corerrb_vector/v0v0v11/clojure/core/rrb_vector/trees.cljs",
+  :ns
+  golden.inlined.corerrb-vector.v0v0v11.clojure.core.rrb-vector.trees}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/clojure.cljc",
+  :ns golden.inlined.fipp.v0v6v10.fipp.clojure}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/deque.cljc",
+  :ns golden.inlined.fipp.v0v6v10.fipp.deque}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/edn.cljc",
+  :ns golden.inlined.fipp.v0v6v10.fipp.edn}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/ednize.clj",
+  :ns golden.inlined.fipp.v0v6v10.fipp.ednize}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/ednize.cljs",
+  :ns golden.inlined.fipp.v0v6v10.fipp.ednize}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/engine.cljc",
+  :ns golden.inlined.fipp.v0v6v10.fipp.engine}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/repl.clj",
+  :ns golden.inlined.fipp.v0v6v10.fipp.repl}
+ {:path "golden/inlined/fipp/v0v6v10/fipp/visit.cljc",
+  :ns golden.inlined.fipp.v0v6v10.fipp.visit}
+ {:path "golden/inlined/puget/v1v0v2/puget/color.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.color}
+ {:path "golden/inlined/puget/v1v0v2/puget/color/ansi.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.color.ansi}
+ {:path "golden/inlined/puget/v1v0v2/puget/color/html.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.color.html}
+ {:path "golden/inlined/puget/v1v0v2/puget/dispatch.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.dispatch}
+ {:path "golden/inlined/puget/v1v0v2/puget/printer.clj",
+  :ns golden.inlined.puget.v1v0v2.puget.printer}]
