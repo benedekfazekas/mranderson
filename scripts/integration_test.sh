@@ -9,4 +9,5 @@ cd "$(git rev-parse --show-toplevel)"
 # (which track moving upstream targets) stay soft.
 
 make install
+make check-artifact
 scripts/downstream_test.sh

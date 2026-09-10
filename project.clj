@@ -16,9 +16,16 @@
                     ;; https://saker.build/blog/javac_source_target_parameters/index.html / https://archive.md/JH260
                     ["--release" "8"])
   :filespecs [{:type :bytes :path "mranderson/project.clj" :bytes ~(slurp "project.clj")}]
-  :dependencies [^:inline-dep [clj-commons/pomegranate "1.2.25"]
+  ;; pomegranate is a regular dependency on purpose: inlining it drags its whole
+  ;; aether/maven Java tree into the jar, unshaded, which clashes with any other
+  ;; resolver on a consumer's classpath (#134). fs only needs commons-compress
+  ;; for its `compression` namespace, which we never load, so those Java deps
+  ;; stay out too and the artifact ships no third-party class files at all.
+  :dependencies [[clj-commons/pomegranate "1.2.25"]
                  ^:inline-dep [org.clojure/tools.namespace "1.5.1"]
-                 ^:inline-dep [clj-commons/fs "1.6.312"]
+                 ^:inline-dep [clj-commons/fs "1.6.312"
+                               :exclusions [org.apache.commons/commons-compress
+                                            org.tukaani/xz]]
                  ^:inline-dep [rewrite-clj "1.2.54"]
                  ^:inline-dep [org.clojure/tools.cli "1.1.230"]
                  [org.clojure/clojure "1.10.3" :scope "provided"]

@@ -42,6 +42,8 @@ to manage it. The important targets:
   `target/srcdeps`.
 - `make install` installs an *inlined* MrAnderson to your local Maven repo, so
   other projects on your machine can depend on it.
+- `make check-artifact` fails if the built jar carries anything but
+  MrAnderson's own files (an inlined dependency's Java classes, say).
 - `make integration-test` runs the downstream tests against cider-nrepl and
   refactor-nrepl (see `scripts/integration_test.sh`).
 - `make deploy` deploys an inlined release to Clojars.
