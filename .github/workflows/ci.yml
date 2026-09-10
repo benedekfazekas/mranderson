@@ -118,10 +118,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Install Leiningen
+      - name: Install Leiningen and the Clojure CLI
         uses: DeLaGuardo/setup-clojure@13.4
         with:
           lein: latest
+          cli: latest
 
       - name: Cache Maven dependencies
         uses: actions/cache@v4
