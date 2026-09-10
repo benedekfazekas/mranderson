@@ -1,4 +1,4 @@
-.PHONY: bootstrap-install inline test integration-test install deploy clean
+.PHONY: bootstrap-install inline test integration-test install check-artifact deploy clean
 
 # Note that bootstrapping is a two-step process: given that mranderson depends on
 # itself as a plugin, it first needs to be installed without the plugin, so that
@@ -11,7 +11,7 @@ bootstrap-install:
 .inline: bootstrap-install
 	rm target/*.jar
 	rm pom.xml
-	lein with-profile -user,-dev,+mranderson-plugin inline-deps :skip-javaclass-repackage true
+	lein with-profile -user,-dev,+mranderson-plugin inline-deps
 	touch .inline
 
 inline: .inline
@@ -26,6 +26,10 @@ integration-test:
 # repository so that other projects can depend on it.
 install: .inline
 	lein with-profile -user,-dev,+mranderson-profile install
+
+# Fail if the built jar carries anything but MrAnderson's own files (#134).
+check-artifact:
+	scripts/check_artifact.sh
 
 deploy: .inline
 	lein with-profile -user,-dev,+mranderson-profile deploy clojars

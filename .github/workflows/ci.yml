@@ -135,6 +135,11 @@ jobs:
       - name: Build inlined MrAnderson
         run: make install
 
+      # The artifact must ship only MrAnderson's own files; a third-party class
+      # file at its original path leaks unshaded onto consumers' classpaths.
+      - name: Check the artifact
+        run: make check-artifact
+
       # cider-nrepl/refactor-nrepl track moving upstream targets, so their builds
       # are informative but allowed to fail without turning the whole run red.
       # One target per matrix job, so they run in parallel and failures are
