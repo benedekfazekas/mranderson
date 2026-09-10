@@ -6,6 +6,10 @@
 
 - [#134](https://github.com/benedekfazekas/mranderson/issues/134): Stop shipping pomegranate's aether/maven Java classes, unshaded, inside the published jar; they clashed with any other resolver on a consumer's classpath (cider-nrepl's build died with an `IllegalAccessError` once its tools.build pulled in tools.deps 0.31). pomegranate is now a regular dependency, `fs`'s compression-only Java deps are excluded, and the artifact carries nothing but MrAnderson's own files (8 MB down to ~200 KB); `make check-artifact` fails the build if that regresses
 
+### Changes
+
+- [#134](https://github.com/benedekfazekas/mranderson/issues/134): Run the downstream cider-nrepl integration test against its tools.deps build (0.62.2) with the current tools.build and deps-deploy, so a clash between the artifact and a newer resolver shows up in CI
+
 ## 0.7.1
 
 ### New features

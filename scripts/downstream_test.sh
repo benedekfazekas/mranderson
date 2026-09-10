@@ -19,39 +19,57 @@ cd "$(git rev-parse --show-toplevel)"
 # (CI runs that as a separate, hard-failing step; `make integration-test` does it
 # via integration_test.sh).
 
-CIDER_NREPL_VERSION="${CIDER_NREPL_VERSION:-0.61.0}"
+CIDER_NREPL_VERSION="${CIDER_NREPL_VERSION:-0.62.2}"
 REFACTOR_NREPL_VERSION="${REFACTOR_NREPL_VERSION:-3.13.0}"
+# cider-nrepl builds with tools.build, so its build alias puts tools.deps (and
+# deps-deploy's Maven bits) on the same classpath as mranderson. Run it against
+# the current versions of that tooling rather than whatever the release pins, so
+# a clash between mranderson's artifact and a newer resolver (#134) shows up
+# here instead of downstream.
+TOOLS_BUILD_VERSION="${TOOLS_BUILD_VERSION:-0.10.14}"
+DEPS_DEPLOY_VERSION="${DEPS_DEPLOY_VERSION:-0.2.5}"
 
 # the mranderson version we build here, e.g. 0.7.1-SNAPSHOT
 MRANDERSON_VERSION="$(grep -oE '"[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?"' project.clj | head -1 | tr -d '"')"
 
 DOWNSTREAM_DIR="target/downstream"
 
-# Fetch a pinned release into target/ and repoint its mranderson plugin at the
-# version we just installed.
+# Fetch a pinned release into target/.
 fetch() {
   local name="$1" repo="$2" version="$3"
   local dir="$DOWNSTREAM_DIR/$name"
   mkdir -p "$DOWNSTREAM_DIR"
   rm -rf "$dir"
   git clone --depth 1 --branch "v$version" "$repo" "$dir"
-  sed -i.bak -E "s|(thomasa/mranderson) \"[^\"]*\"|\1 \"$MRANDERSON_VERSION\"|" "$dir/project.clj"
-  rm -f "$dir/project.clj.bak"
 }
 
 test_cider_nrepl() {
   fetch cider-nrepl https://github.com/clojure-emacs/cider-nrepl.git "$CIDER_NREPL_VERSION"
   cd "$DOWNSTREAM_DIR/cider-nrepl"
-  # cider-nrepl observes CI, which triggers :pedantic?, which is irrelevant here:
-  unset CI
-  lein clean
-  lein with-profile -user,-dev inline-deps
-  lein with-profile -user,-dev,+1.10,+test,+plugin.mranderson/config test
+  # Repoint the :build alias at the mranderson we just installed and at the
+  # current build tooling. A user-level deps.edn is the least invasive way in:
+  # its :build alias merges with the project's, so :override-deps applies on top
+  # of the release's own pins without editing the checkout.
+  local config_dir="$PWD/target/clj-config"
+  mkdir -p "$config_dir"
+  cat > "$config_dir/deps.edn" <<EOF
+{:aliases {:build {:override-deps {thomasa/mranderson {:mvn/version "$MRANDERSON_VERSION"}
+                                   io.github.clojure/tools.build {:mvn/version "$TOOLS_BUILD_VERSION"}
+                                   slipset/deps-deploy {:mvn/version "$DEPS_DEPLOY_VERSION"}}}}}
+EOF
+  export CLJ_CONFIG="$config_dir"
+  clojure -Stree -T:build | grep -E "^[a-z]"
+  # inline the shaded deps with the mranderson under test, then run the suite
+  # against the inlined sources
+  make inlined-test
 }
 
 test_refactor_nrepl() {
   fetch refactor-nrepl https://github.com/clojure-emacs/refactor-nrepl.git "$REFACTOR_NREPL_VERSION"
   cd "$DOWNSTREAM_DIR/refactor-nrepl"
+  # repoint the lein plugin at the mranderson we just installed
+  sed -i.bak -E "s|(thomasa/mranderson) \"[^\"]*\"|\1 \"$MRANDERSON_VERSION\"|" project.clj
+  rm -f project.clj.bak
   lein clean
   make test
 }
