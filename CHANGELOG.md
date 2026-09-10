@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.2
+
 ### Bug fixes
 
 - [#134](https://github.com/benedekfazekas/mranderson/issues/134): Stop shipping pomegranate's aether/maven Java classes, unshaded, inside the published jar; they clashed with any other resolver on a consumer's classpath (cider-nrepl's build died with an `IllegalAccessError` once its tools.build pulled in tools.deps 0.31). pomegranate is now a regular dependency, `fs`'s compression-only Java deps are excluded, and the artifact carries nothing but MrAnderson's own files (8 MB down to ~200 KB); `make check-artifact` fails the build if that regresses
